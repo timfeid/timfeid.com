@@ -15,16 +15,14 @@
 
 <div class="flex min-h-screen w-full flex-col">
 	<header class="flex h-12 items-center bg-zinc-900">
-		<div class="container mx-auto flex">
-			<div class="ml-1">
-				<a
-					class="flex h-full items-center px-2 text-gray-600 underline-offset-[3px] hover:text-gray-800 hover:underline dark:text-gray-300 dark:hover:text-gray-100"
-					href="/"
-				>
-					<Home class="mr-2 h-4 w-4" />
-					<div>timfeid</div>
-				</a>
-			</div>
+		<div class="container mx-auto flex px-4 lg:px-2">
+			<a
+				class="flex h-full items-center px-2 text-gray-600 underline-offset-[3px] hover:text-gray-800 hover:underline dark:text-gray-300 dark:hover:text-gray-100"
+				href="/"
+			>
+				<Home class="mr-2 h-4 w-4" />
+				<div>timfeid</div>
+			</a>
 		</div>
 	</header>
 

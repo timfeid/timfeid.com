@@ -1,0 +1,35 @@
+---
+description: A two-factor authentication (2FA) desktop application built with Rust, SvelteKit, and Tauri.
+date: 1738964598
+image: /posts/projects/2fa/screenshot.png
+category: Projects
+title: 2FA Desktop Application
+tags:
+  - "Rust"
+  - "Svelte"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# 2FA Desktop Application
+
+I developed a desktop application to enhance account security through two-factor authentication (2FA). This application integrates Rust, SvelteKit, and Tauri to provide a secure and user-friendly experience for managing 2FA tokens.
+
+![Screenshot](/posts/projects/2fa/screenshot.png)
+
+## Tech Stack & Development
+
+- **Frontend**: Utilized SvelteKit for building a reactive and efficient user interface.
+- **Backend:** Employed Rust for its performance and safety features, ensuring secure handling of authentication processes.
+- **Desktop Integration:** Leveraged Tauri to create a lightweight desktop application with a small footprint.
+- **Version Control:** Managed the project using Git & GitHub for streamlined collaboration and version tracking.
+
+## Key Features
+
+- **Secure Token Management:** Allows users to generate and store 2FA tokens securely.
+- **Cross-Platform Support:** Runs efficiently on various operating systems due to the lightweight nature of Tauri.
+- **User-Friendly Interface:** Provides an intuitive UI for easy management of multiple accounts and their associated 2FA tokens.
+
+<GithubRepo repo="timfeid/2fa" link="https://github.com/timfeid/2fa" />

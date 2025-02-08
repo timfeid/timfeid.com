@@ -11,7 +11,7 @@
 		CardContent,
 		CardTitle,
 		CardDescription,
-		CardFooter,
+		CardFooter
 	} from '../lib/components/ui/card';
 	import * as Tooltip from '../lib/components/ui/tooltip';
 	import { Portal } from 'bits-ui';
@@ -22,7 +22,7 @@
 <Page>
 	<div class="flex w-full flex-col">
 		<section id="about" class="flex w-full bg-zinc-800 py-12 md:py-24 lg:py-32">
-			<div class="container mx-auto px-4 md:px-6">
+			<div class="container mx-auto px-6 md:px-4">
 				<div class="flex flex-col items-center justify-center space-y-4 text-center">
 					<div class="space-y-2">
 						<h1
@@ -77,7 +77,7 @@
 			</div>
 		</section>
 
-		<section class="container mx-auto flex w-full flex-col py-8">
+		<section class="container mx-auto flex w-full flex-col px-6 py-8 md:px-4">
 			<h1 class="mb-3 text-xl">Projects</h1>
 			<div class="xmd:grid-cols-2 grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
 				{#each data.posts as post}

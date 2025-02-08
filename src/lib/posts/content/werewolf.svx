@@ -24,8 +24,8 @@ I built this project as a real-time, multiplayer web application for the classic
 ## Tech Stack & Development
 
 - **Frontend:** Built with Vue.js, featuring a reactive UI and state management via Vuex.
-- **Backend:** Developed using Node.js and Express, handling game logic and player interactions.
-- **Real-Time Communication: Implemented WebSockets to enable live gameplay updates and seamless player communication.
+- **Backend:** Developed using Node.js and Koa, handling game logic and player interactions.
+- **Real-Time Communication**: Implemented WebSockets to enable live gameplay updates and seamless player communication.
 - **Languages:** Primary development in TypeScript for better type safety and maintainability.
 - **Containerization:** Used Docker for consistent deployment and ease of scaling.
 - **Version Control:** Managed with Git & GitHub, ensuring structured and collaborative development.
@@ -37,6 +37,5 @@ I built this project as a real-time, multiplayer web application for the classic
 - **Automated Game Flow:** Handles all game mechanics, from role assignments to voting and eliminations.
 - **Scalability:** Dockerized deployment makes it easy to run on different environments.
 
-This project showcases expertise in real-time web applications, multiplayer game mechanics, and full-stack web development.
 
 <GithubRepo repo="timfeid/werewolf" link="https://github.com/timfeid/werewolf" />
