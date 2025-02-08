@@ -17,13 +17,13 @@ tags:
 
 # Werewolf Web App
 
-I built this project as a real-time, multiplayer web application for the classic social deduction game **Werewolf**. The app provides an interactive and seamless experience, allowing players to engage in the game from any device. By leveraging **TypeScript, Vue.js, and WebSockets**, I ensured a fast, responsive, and scalable gameplay experience.
+I built this project as a real-time, multiplayer web application for the classic social deduction game Werewolf. The app provides an interactive and seamless experience, allowing players to engage in the game from any device. By leveraging TypeScript, Vue.js, and WebSockets, I ensured a fast, responsive, and scalable gameplay experience.
 
 ![Screenshot](/posts/werewolf/screenshot.png)
 
 ## Tech Stack & Development
 
-- **Frontend:** Built with **Vue.js**, featuring a reactive UI and state management via Vuex.
+- **Frontend:** Built with Vue.js, featuring a reactive UI and state management via Vuex.
 - **Backend:** Developed using Node.js and Express, handling game logic and player interactions.
 - **Real-Time Communication: Implemented WebSockets to enable live gameplay updates and seamless player communication.
 - **Languages:** Primary development in TypeScript for better type safety and maintainability.
