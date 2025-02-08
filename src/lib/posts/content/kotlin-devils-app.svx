@@ -1,0 +1,38 @@
+---
+description: An unofficial New Jersey Devils Android app written in Kotlin for better performance and maintainability.
+date: 1738964598
+image: /posts/kotlin-devils/screenshot.png
+category: Projects
+title: New Jersey Devils Android App
+tags:
+  - "Kotlin"
+  - "Android"
+  - "Mobile"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# New Jersey Devils Android App
+
+
+I built this project as a complete rewrite of my original New Jersey Devils app, transitioning from Java to Kotlin to take advantage of modern language features, better safety, and improved maintainability. The goal was to provide fans with a clean, efficient, and reliable way to stay updated on their favorite hockey team.
+
+![Screenshot](/posts/kotlin-devils/screenshot.png)
+
+## Tech Stack & Development
+
+- **Language:** Kotlin, chosen for its null safety, concise syntax, and interoperability with existing Android APIs.
+- **IDE:** Developed in **Android Studio**, utilizing its built-in tools for UI design, debugging, and performance optimization.
+- **Build System:** Used **Gradle**, defining dependencies and configurations in `build.gradle`. The project relies on:
+  - Android Gradle Plugin 7.2.2
+  - Kotlin Gradle Plugin 1.7.10
+  - Repositories: Google’s Maven, Maven Central, and JCenter
+
+## Why the Rewrite?
+The original version was built in Java but became harder to maintain as new Android APIs and best practices evolved. By switching to Kotlin, I improved code readability, eliminated unnecessary boilerplate, and made future enhancements easier to implement.
+
+This rewrite provides New Jersey Devils fans with a faster, smoother, and more maintainable experience on Android.
+
+<GithubRepo repo="timfeid/kotlin" link="https://github.com/timfeid/kotlin-devils" />

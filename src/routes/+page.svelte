@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import PageContent from '../lib/components/app/page-content.svelte';
+	import Page from '../lib/components/app/page.svelte';
 	import { Badge } from '../lib/components/ui/badge';
 	import {
 		Card,
@@ -7,65 +9,45 @@
 		CardContent,
 		CardTitle,
 		CardDescription,
-		CardFooter
+		CardFooter,
 	} from '../lib/components/ui/card';
 
-	const projects = [
-		{
-			title: 'Project Alpha',
-			description: 'A cutting-edge web application built with React and Node.js',
-			image: '/placeholder.svg?height=400&width=600',
-			tags: ['React', 'Node.js', 'MongoDB']
-		},
-		{
-			title: 'Beta Mobile App',
-			description: 'Cross-platform mobile app developed using React Native',
-			image: '/placeholder.svg?height=400&width=600',
-			tags: ['React Native', 'Firebase', 'Redux']
-		},
-		{
-			title: 'Gamma Dashboard',
-			description: 'Responsive admin dashboard with real-time data visualization',
-			image: '/placeholder.svg?height=400&width=600',
-			tags: ['Vue.js', 'D3.js', 'Express']
-		},
-		{
-			title: 'Delta E-commerce',
-			description: 'Full-stack e-commerce solution with secure payment integration',
-			image: '/placeholder.svg?height=400&width=600',
-			tags: ['Next.js', 'Stripe', 'PostgreSQL']
-		}
-	];
+	let { data } = $props();
 </script>
 
-<div class="bg-neutral-900 py-3">
-	<main class="container mx-auto px-3">
-		<h1 class="mb-8 text-center text-4xl font-bold">My Portfolio</h1>
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-			{#each projects as project}
-				<Card class="overflow-hidden">
-					<CardHeader class="p-0">
-						<img
-							src={project.image || '/placeholder.svg'}
-							alt={project.title}
-							width={600}
-							height={400}
-							class="h-48 w-full object-cover"
-						/>
-					</CardHeader>
-					<CardContent class="p-4">
-						<CardTitle>{project.title}</CardTitle>
-						<CardDescription>{project.description}</CardDescription>
-					</CardContent>
-					<CardFooter class="flex flex-wrap gap-2">
-						{#each project.tags as tag}
-							<Badge variant="secondary">
-								{tag}
-							</Badge>
-						{/each}
-					</CardFooter>
-				</Card>
+<Page>
+	<PageContent class="h-min">
+		<h1 class="mb-3 text-xl">Projects</h1>
+		<div class="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+			{#each data.posts as post}
+				<a
+					href="/posts/{post.slug}"
+					class="group/post inline-block transition hover:drop-shadow-[0_5px_5px_rgba(0,0,0,0.05)] dark:hover:drop-shadow-[0_5px_5px_rgba(255,255,255,0.05)]"
+				>
+					<Card class="flex h-full flex-col overflow-hidden group-hover/post:border-neutral-700">
+						<CardHeader class="p-0">
+							<img
+								src={post.metadata.image || '/placeholder.svg'}
+								alt={post.metadata.title}
+								class="aspect-video h-48 w-full object-cover"
+							/>
+						</CardHeader>
+						<CardContent class="p-3">
+							<CardTitle>{post.metadata.title}</CardTitle>
+							<CardDescription class="text-neutral-400 transition group-hover/post:text-neutral-300"
+								>{post.metadata.description}</CardDescription
+							>
+						</CardContent>
+						<CardFooter class="mt-auto flex flex-wrap gap-2 p-3">
+							{#each post.metadata.tags as tag}
+								<Badge variant="default">
+									{tag}
+								</Badge>
+							{/each}
+						</CardFooter>
+					</Card>
+				</a>
 			{/each}
 		</div>
-	</main>
-</div>
+	</PageContent>
+</Page>

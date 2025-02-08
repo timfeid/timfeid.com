@@ -1,0 +1,42 @@
+---
+description: A real-time multiplayer Werewolf web app built with TypeScript, Vue.js, and Docker.
+date: 1738964598
+image: /posts/werewolf/screenshot.png
+category: Projects
+title: Werewolf Web App
+tags:
+  - "Web"
+  - "Typescript"
+  - "Vue"
+  - "Docker"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Werewolf Web App
+
+I built this project as a real-time, multiplayer web application for the classic social deduction game **Werewolf**. The app provides an interactive and seamless experience, allowing players to engage in the game from any device. By leveraging **TypeScript, Vue.js, and WebSockets**, I ensured a fast, responsive, and scalable gameplay experience.
+
+![Screenshot](/posts/werewolf/screenshot.png)
+
+## Tech Stack & Development
+
+- **Frontend:** Built with **Vue.js**, featuring a reactive UI and state management via Vuex.
+- **Backend:** Developed using Node.js and Express, handling game logic and player interactions.
+- **Real-Time Communication: Implemented WebSockets to enable live gameplay updates and seamless player communication.
+- **Languages:** Primary development in TypeScript for better type safety and maintainability.
+- **Containerization:** Used Docker for consistent deployment and ease of scaling.
+- **Version Control:** Managed with Git & GitHub, ensuring structured and collaborative development.
+
+## Key Features
+
+- **Real-Time Gameplay:** Players can interact instantly with one another through WebSockets.
+- **Mobile & Desktop Friendly:** The UI is designed to be fully responsive for all screen sizes.
+- **Automated Game Flow:** Handles all game mechanics, from role assignments to voting and eliminations.
+- **Scalability:** Dockerized deployment makes it easy to run on different environments.
+
+This project showcases expertise in real-time web applications, multiplayer game mechanics, and full-stack web development.
+
+<GithubRepo repo="timfeid/werewolf" link="https://github.com/timfeid/werewolf" />

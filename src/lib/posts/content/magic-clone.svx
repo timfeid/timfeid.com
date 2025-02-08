@@ -1,0 +1,35 @@
+---
+description: A text-based card game simulation implemented in Rust, focusing on turn-based mechanics and player interactions.
+date: 1738964598
+image: /posts/magic/screenshot.png
+category: Projects
+title: Text-Based Card Game Simulation
+tags:
+  - "Web"
+  - "Rust"
+  - "Svelte"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Text-Based Card Game Simulation
+
+I developed a text-based card game simulation in Rust, emphasizing turn-based mechanics and player interactions. The game operates in a command-line interface (CLI), providing a clear and structured output of game states and actions.
+
+![Screenshot](/posts/magic/screenshot.png)
+
+## Tech Stack & Development
+
+- **Language:** Rust, chosen for its performance and safety features.
+- **Project Management:** Utilized Cargo for package management and build processes.
+- **Version Control:** Managed with Git & GitHub for structured development and collaboration.
+
+## Key Features
+
+- **Turn-Based Mechanics:** Players take turns performing actions, with the game state updating accordingly.
+- **Card Management:** Implementation of card drawing, playing, and effects within the game loop.
+- **Player Interactions:** Simulated player actions and responses, providing a foundation for potential multiplayer support.
+
+<GithubRepo repo="timfeid/game" link="https://github.com/timfeid/game" />
