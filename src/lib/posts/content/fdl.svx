@@ -8,7 +8,6 @@ tags:
   - "TypeScript"
   - "Vue"
   - "Monorepo"
-  - "Web Development"
 ---
 
 <script lang="ts">
