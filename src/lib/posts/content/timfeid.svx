@@ -3,7 +3,7 @@ description: A personal website developed using SvelteKit and TypeScript, showca
 date: 1738964598
 image: /posts/projects/timfeid.com/screenshot.png
 category: Projects
-title: Personal Website - timfeid.com
+title: Personal Website
 tags:
   - "SvelteKit"
   - "TypeScript"
@@ -14,7 +14,7 @@ tags:
   import GithubRepo from '$lib/components/app/project/github-repo.svelte'
 </script>
 
-# Personal Website - timfeid.com
+# Personal Website
 
 I developed my personal website, **timfeid.com**, utilizing SvelteKit and TypeScript to create a dynamic platform for showcasing my projects and sharing blog posts.
 
