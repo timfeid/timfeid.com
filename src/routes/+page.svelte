@@ -1,85 +1,49 @@
 <script lang="ts">
-	import Github from '$lib/components/app/project/github.svg?component';
-	import Linkedin from '$lib/components/app/linkedin.svg?component';
-	import { Button } from '$lib/components/ui/button';
-	import PageContent from '../lib/components/app/page-content.svelte';
+	import Right from '$lib/components/app/right.svg?component';
 	import Page from '../lib/components/app/page.svelte';
 	import { Badge } from '../lib/components/ui/badge';
+	import Button from '../lib/components/ui/button/button.svelte';
 	import {
 		Card,
-		CardHeader,
 		CardContent,
-		CardTitle,
 		CardDescription,
 		CardFooter,
+		CardHeader,
+		CardTitle,
 	} from '../lib/components/ui/card';
-	import * as Tooltip from '../lib/components/ui/tooltip';
-	import { Portal } from 'bits-ui';
 
 	let { data } = $props();
 </script>
 
 <Page description="A full stack developer, not designer">
 	<div class="flex w-full flex-col">
-		<section id="about" class="flex w-full bg-zinc-800 py-12 md:py-24 lg:py-32">
+		<section id="about" class="flex min-h-screen w-full items-center">
 			<div class="container mx-auto px-6 md:px-4">
 				<div class="flex flex-col items-center justify-center space-y-4 text-center">
-					<div class="space-y-2">
+					<div class="space-y-6">
 						<h1
-							class="text-3xl leading-none font-bold tracking-tighter uppercase sm:text-4xl md:text-5xl lg:text-5xl/none"
+							class="text-3xl font-bold tracking-tight uppercase sm:text-4xl md:text-5xl lg:text-5xl/none"
 						>
-							Full Stack Developer
+							Full Stack Developer.<br /><span class="text-neutral-500">Not a designer.</span>
 						</h1>
 						<p class="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
 							Technically proficient, open minded web developer who is eager to improve the web
 							browsing experience with faster load times and an interactive, user-centered design.
 						</p>
-					</div>
-					<div class="space-x-4">
-						<Tooltip.Provider disableHoverableContent delayDuration={350}>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<Button
-										class="bg-zinc-900/50 hover:bg-zinc-950"
-										href="https://github.com/timfeid"
-										variant="outline"
-										size="icon"
-									>
-										<Github fill="currentColor" class="h-4 w-4" />
-										<span class="sr-only">GitHub</span>
-									</Button>
-								</Tooltip.Trigger>
-								<Portal>
-									<Tooltip.Content>GitHub</Tooltip.Content>
-								</Portal>
-							</Tooltip.Root>
-						</Tooltip.Provider>
-						<Tooltip.Provider disableHoverableContent delayDuration={350}>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<Button
-										class="bg-zinc-900/50 hover:bg-zinc-950"
-										href="https://www.linkedin.com/in/tim-feid-38000327/"
-										variant="outline"
-										size="icon"
-									>
-										<Linkedin fill="currentColor" class="h-4 w-4" />
-										<span class="sr-only">Linkedin</span>
-									</Button>
-								</Tooltip.Trigger>
-								<Portal>
-									<Tooltip.Content>Linkedin</Tooltip.Content>
-								</Portal>
-							</Tooltip.Root>
-						</Tooltip.Provider>
+						<div class="space-x-2">
+							<Button href="#projects">View Projects <Right /></Button>
+						</div>
 					</div>
 				</div>
 			</div>
 		</section>
 
-		<section class="container mx-auto flex w-full flex-col px-6 py-8 md:px-4">
-			<h1 class="mb-3 text-xl">Projects</h1>
-			<div class="xmd:grid-cols-2 grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
+		<section
+			id="projects"
+			class="container mx-auto flex min-h-screen w-full flex-col justify-center px-6 py-8 md:px-4"
+		>
+			<h1 class="mb-3 mb-6 text-center text-3xl font-bold uppercase">Projects</h1>
+			<div class="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
 				{#each data.posts as post}
 					<a
 						href="/posts/{post.slug}"

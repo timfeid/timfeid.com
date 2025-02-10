@@ -38,7 +38,7 @@
 	--breakpoint-md: 65ch;
 	--breakpoint-lg: 65ch;
 	--breakpoint-xl: 65ch;
-	--breakpoint-2xl: 65ch;
+	--breakpoint-2xl: 1080px;
 }
 
 .dark {
