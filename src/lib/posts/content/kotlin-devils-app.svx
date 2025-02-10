@@ -1,7 +1,7 @@
 ---
 description: An unofficial New Jersey Devils Android app written in Kotlin for better performance and maintainability.
 date: 1738964598
-image: /posts/kotlin-devils/screenshot.png
+image: /posts/projects/kotlin-devils/screenshot.png
 category: Projects
 title: New Jersey Devils Android App
 tags:
@@ -19,7 +19,7 @@ tags:
 
 I built this project as a complete rewrite of my original New Jersey Devils app, transitioning from Java to Kotlin to take advantage of modern language features, better safety, and improved maintainability. The goal was to provide fans with a clean, efficient, and reliable way to stay updated on their favorite hockey team.
 
-![Screenshot](/posts/kotlin-devils/screenshot.png)
+![Screenshot](/posts/projects/kotlin-devils/screenshot.png)
 
 ## Tech Stack & Development
 
@@ -35,4 +35,4 @@ The original version was built in Java but became harder to maintain as new Andr
 
 This rewrite provides New Jersey Devils fans with a faster, smoother, and more maintainable experience on Android.
 
-<GithubRepo repo="timfeid/kotlin" link="https://github.com/timfeid/kotlin-devils" />
+<GithubRepo repo="timfeid/kotlin-devils" link="https://github.com/timfeid/kotlin-devils" />

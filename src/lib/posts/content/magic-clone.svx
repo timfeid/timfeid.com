@@ -1,9 +1,9 @@
 ---
-description: A text-based card game simulation implemented in Rust, focusing on turn-based mechanics and player interactions.
+description: A basic clone of MTG, exploring game development
 date: 1738964598
-image: /posts/magic/screenshot.png
+image: /posts/projects/magic/screenshot3.png
 category: Projects
-title: Text-Based Card Game Simulation
+title: MTG card game clone
 tags:
   - "Web"
   - "Rust"
@@ -14,11 +14,11 @@ tags:
   import GithubRepo from '$lib/components/app/project/github-repo.svelte'
 </script>
 
-# Text-Based Card Game Simulation
+# MTG card game clone
 
-I developed a text-based card game simulation in Rust, emphasizing turn-based mechanics and player interactions. The game operates in a command-line interface (CLI), providing a clear and structured output of game states and actions.
+I developed a card game in Rust, emphasizing turn-based mechanics and player interactions.
 
-![Screenshot](/posts/magic/screenshot.png)
+![Screenshot](/posts/projects/magic/screenshot2.png)
 
 ## Tech Stack & Development
 
@@ -30,6 +30,6 @@ I developed a text-based card game simulation in Rust, emphasizing turn-based me
 
 - **Turn-Based Mechanics:** Players take turns performing actions, with the game state updating accordingly.
 - **Card Management:** Implementation of card drawing, playing, and effects within the game loop.
-- **Player Interactions:** Simulated player actions and responses, providing a foundation for potential multiplayer support.
+- **Player Interactions:** Player actions and responses, providing a foundation for multiplayer support.
 
 <GithubRepo repo="timfeid/game" link="https://github.com/timfeid/game" />

@@ -73,3 +73,19 @@
 		--color-sidebar-ring: hsl(240 4.9% 83.9%);
 	}
 }
+
+a {
+	text-underline-offset: 3px;
+}
+
+.prose {
+	img {
+		@apply rounded-lg;
+	}
+	:where(code):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+		&::before,
+		&::after {
+			display: none;
+		}
+	}
+}

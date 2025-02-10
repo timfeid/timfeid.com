@@ -1,7 +1,7 @@
 ---
 description: Join vibrant communities, share your passions, and engage in meaningful conversations with like-minded individuals.
 date: 1738964597
-image: /posts/projects/imma.fan/screenshot1.png
+image: /posts/projects/imma.fan/screenshot.png
 category: Projects
 title: Imma.fan NHL PWA
 tags:
@@ -13,10 +13,11 @@ tags:
 
 # Imma.fan NHL PWA
 
-![Screenshot](/posts/projects/imma.fan/screenshot1.png)
 
+![Screenshot](/posts/projects/imma.fan/screenshot.png)
 The inspiration was simple: I do not like Twitter, therefore I do not use it. However, I wanted to get real time NHL news. I don't feel comfortable sharing the repo just yet, but here are some screen shots. You can also just visit the website, [imma.fan](https://imma.fan/).
 
+![Screenshot](/posts/projects/imma.fan/screenshot1.png)
 ![Screenshot](/posts/projects/imma.fan/screenshot2.png)
 ![Screenshot](/posts/projects/imma.fan/screenshot3.png)
 ![Screenshot](/posts/projects/imma.fan/screenshot4.png)

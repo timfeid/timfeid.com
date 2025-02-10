@@ -7,6 +7,7 @@ title: 2FA Desktop Application
 tags:
   - "Rust"
   - "Svelte"
+  - "Tauri"
 ---
 
 <script lang="ts">

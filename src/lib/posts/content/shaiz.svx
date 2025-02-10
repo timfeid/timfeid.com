@@ -1,0 +1,38 @@
+---
+description: A Rust-based command-line tool for seamless GPT-powered interactions within the terminal.
+date: 1738964598
+image: /posts/projects/shaiz/screenshot.png
+category: Projects
+title: Shaiz - AI-Powered Shell Companion
+tags:
+  - "Rust"
+  - "CLI"
+  - "AI"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Shaiz - AI-Powered Shell Companion
+
+I developed **Shaiz**, a Rust-based command-line tool that seamlessly integrates GPT functionality into the terminal, enabling users to interact with AI models efficiently while working in the shell environment.
+
+Simply press `Ctrl + P` and type a CLI question
+
+![Screenshot](/posts/projects/shaiz/example.gif)
+
+## Tech Stack & Development
+
+- **Core Development:** Built using Rust for optimal performance, memory safety, and reliability.
+- **AI Integration:** Utilized GPT models to provide intelligent responses directly within the terminal.
+- **Command-Line Interface:** Designed a user-friendly CLI for quick and intuitive AI interactions.
+- **Version Control:** Managed the project using Git & GitHub for efficient collaboration and updates.
+
+## Key Features
+
+- **Seamless AI Assistance:** Allows users to engage with GPT models without leaving the terminal.
+- **Efficient and Lightweight:** Written in Rust for minimal overhead and fast execution.
+- **Customizable & Extendable:** Users can modify and extend functionality to fit their workflow.
+
+<GithubRepo repo="timfeid/shaiz" link="https://github.com/timfeid/shaiz" />

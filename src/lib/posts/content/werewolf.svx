@@ -1,7 +1,7 @@
 ---
 description: A real-time multiplayer Werewolf web app built with TypeScript, Vue.js, and Docker.
 date: 1738964598
-image: /posts/werewolf/screenshot.png
+image: /posts/projects/werewolf/screenshot.png
 category: Projects
 title: Werewolf Web App
 tags:
@@ -19,7 +19,7 @@ tags:
 
 I built this project as a real-time, multiplayer web application for the classic social deduction game Werewolf. The app provides an interactive and seamless experience, allowing players to engage in the game from any device. By leveraging TypeScript, Vue.js, and WebSockets, I ensured a fast, responsive, and scalable gameplay experience.
 
-![Screenshot](/posts/werewolf/screenshot.png)
+![Screenshot](/posts/projects/werewolf/screenshot.png)
 
 ## Tech Stack & Development
 
