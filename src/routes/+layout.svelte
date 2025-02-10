@@ -3,6 +3,9 @@
 	import Home from '$lib/components/app/home.svg?component';
 	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 	import { dev } from '$app/environment';
+	import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
+
+	injectSpeedInsights();
 	injectAnalytics({ mode: dev ? 'development' : 'production' });
 
 	let { children } = $props();
