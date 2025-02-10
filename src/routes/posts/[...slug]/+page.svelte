@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Page from '$lib/components/app/page.svelte';
 	import PageContent from '$lib/components/app/page-content.svelte';
+	import Page from '$lib/components/app/page.svelte';
 	import type { ComponentType } from 'svelte';
 
 	let PostComponent: ComponentType | undefined = $state(undefined);
@@ -11,7 +11,11 @@
 	});
 </script>
 
-<Page>
+<Page
+	title={data.metadata.title}
+	description={data.metadata.description}
+	image={data.metadata.image}
+>
 	<PageContent>
 		<div class="prose prose-zinc dark:prose-invert mx-auto">
 			{#if PostComponent}

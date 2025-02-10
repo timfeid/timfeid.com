@@ -11,7 +11,7 @@
 		CardContent,
 		CardTitle,
 		CardDescription,
-		CardFooter
+		CardFooter,
 	} from '../lib/components/ui/card';
 	import * as Tooltip from '../lib/components/ui/tooltip';
 	import { Portal } from 'bits-ui';
@@ -19,7 +19,7 @@
 	let { data } = $props();
 </script>
 
-<Page>
+<Page description="A full stack developer, not designer">
 	<div class="flex w-full flex-col">
 		<section id="about" class="flex w-full bg-zinc-800 py-12 md:py-24 lg:py-32">
 			<div class="container mx-auto px-6 md:px-4">
