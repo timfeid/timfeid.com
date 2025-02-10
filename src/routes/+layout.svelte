@@ -1,6 +1,10 @@
 <script lang="ts">
 	import '../app.css';
 	import Home from '$lib/components/app/home.svg?component';
+	import { injectAnalytics } from '@vercel/analytics/sveltekit';
+	import { dev } from '$app/environment';
+	injectAnalytics({ mode: dev ? 'development' : 'production' });
+
 	let { children } = $props();
 </script>
 
