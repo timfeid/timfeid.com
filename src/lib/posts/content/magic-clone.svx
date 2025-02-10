@@ -1,7 +1,7 @@
 ---
 description: A basic clone of MTG, exploring game development
 date: 1738964598
-image: /posts/projects/magic/screenshot3.png
+image: /posts/projects/magic/teaser.png
 category: Projects
 title: MTG card game clone
 tags:

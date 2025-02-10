@@ -1,0 +1,39 @@
+---
+description: A modular web application developed using TypeScript and Vue.
+date: 1738964598
+image: /posts/projects/fdl/screenshot.png
+category: Projects
+title: FDL Web Application
+tags:
+  - "TypeScript"
+  - "Vue"
+  - "Monorepo"
+  - "Web Development"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# FDL Web Application
+
+I developed **FDL**, a modular web application utilizing TypeScript and Vue.js, organized within a monorepo structure to enhance scalability and maintainability. Downloads *my* movies and puts them where they need to go.
+
+![Screenshot](/posts/projects/fdl/screenshot1.png)
+
+## Tech Stack & Development
+
+- **Monorepo Structure:** Organized the project using a monorepo approach, facilitating efficient management of multiple packages within a single repository.
+- **Frontend:** Built with Vue.js to create a reactive and component-based user interface.
+- **Backend:** Developed the server package using Node.js and Koa to handle API requests and business logic.
+- **Programming Language:** Employed TypeScript across both frontend and backend for type safety and enhanced code maintainability.
+- **Build Tools:** Configured with tools like Docker for containerization and efficient deployment.
+- **Version Control:** Managed the project using Git & GitHub for streamlined collaboration and version tracking.
+
+## Key Features
+
+- **Modular Architecture:** Utilized a monorepo structure to manage multiple packages, promoting code reuse and simplifying dependency management.
+- **Responsive Design:** Ensured optimal user experience across various devices and screen sizes.
+- **Containerization:** Implemented Docker to streamline development, testing, and deployment processes.
+
+<GithubRepo repo="timfeid/fdl" link="https://github.com/timfeid/fdl" />

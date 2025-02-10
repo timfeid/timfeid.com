@@ -18,7 +18,9 @@ tags:
 
 I developed a desktop application to enhance account security through two-factor authentication (2FA). This application integrates Rust, SvelteKit, and Tauri to provide a secure and user-friendly experience for managing 2FA tokens.
 
-![Screenshot](/posts/projects/2fa/screenshot.png)
+![Screenshot](/posts/projects/2fa/screenshot1.png)
+![Screenshot](/posts/projects/2fa/screenshot2.png)
+![Screenshot](/posts/projects/2fa/screenshot3.png)
 
 ## Tech Stack & Development
 
