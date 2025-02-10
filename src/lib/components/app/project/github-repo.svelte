@@ -3,7 +3,7 @@
 	let { link, repo } = $props();
 </script>
 
-<a href={link} class="nowrap flex w-min space-x-2">
+<a href={link} class="flex w-min space-x-2 whitespace-nowrap">
 	<Github class="h-6 w-6 text-white" fill="currentColor" />
 	<div>{repo}</div>
 </a>
