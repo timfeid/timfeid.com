@@ -16,7 +16,7 @@ tags:
 
 # Personal Website
 
-I developed my personal website, **timfeid.com**, utilizing SvelteKit and TypeScript to create a dynamic platform for showcasing my projects and sharing blog posts.
+I developed this website utilizing SvelteKit and TypeScript to create a dynamic platform for showcasing my projects and sharing blog posts.
 
 ![Screenshot](/posts/projects/timfeid.com/screenshot.png)
 
