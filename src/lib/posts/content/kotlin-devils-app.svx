@@ -1,5 +1,5 @@
 ---
-description: An unofficial New Jersey Devils Android app written in Kotlin for better performance and maintainability.
+description: An unofficial New Jersey Devils Android app written in Kotlin.
 date: 1738964598
 image: /posts/projects/kotlin-devils/screenshot.png
 category: Projects
@@ -29,10 +29,5 @@ I built this project as a complete rewrite of my original New Jersey Devils app,
   - Android Gradle Plugin 7.2.2
   - Kotlin Gradle Plugin 1.7.10
   - Repositories: Google’s Maven, Maven Central, and JCenter
-
-## Why the Rewrite?
-The original version was built in Java but became harder to maintain as new Android APIs and best practices evolved. By switching to Kotlin, I improved code readability, eliminated unnecessary boilerplate, and made future enhancements easier to implement.
-
-This rewrite provides New Jersey Devils fans with a faster, smoother, and more maintainable experience on Android.
 
 <GithubRepo repo="timfeid/kotlin-devils" link="https://github.com/timfeid/kotlin-devils" />
