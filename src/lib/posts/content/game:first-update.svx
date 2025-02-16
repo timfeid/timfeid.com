@@ -1,0 +1,22 @@
+---
+description: A two-factor authentication (2FA) desktop application built with Rust, SvelteKit, and Tauri.
+date: 1739734483
+image: /posts/projects/2fa/screenshot.png
+category: Game
+title: 2FA Desktop Application
+tags:
+  - "Rust"
+  - "Svelte"
+  - "Tauri"
+---
+
+# Game idea
+
+Whats working:
+- Multiplayer
+- Car collision
+
+<video id="player" playsinline controls >
+  <source src="https://dek691o7llrph.cloudfront.net/game/first-update.mp4" type="video/mp4" />
+  <source src="https://dek691o7llrph.cloudfront.net/game/first-update.webm" type="video/webm" />
+</video>
