@@ -1,9 +1,9 @@
 ---
-description: A two-factor authentication (2FA) desktop application built with Rust, SvelteKit, and Tauri.
+description: Attempting to create a multiplayer game
 date: 1739734483
 image: /posts/projects/2fa/screenshot.png
 category: Game
-title: 2FA Desktop Application
+title: Desktop Game
 tags:
   - "Rust"
   - "Svelte"
