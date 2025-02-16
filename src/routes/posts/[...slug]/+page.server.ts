@@ -15,3 +15,7 @@ export async function load({ params }) {
 		slug,
 	};
 }
+
+export async function entries() {
+	return Array.from(posts.keys()).map((slug) => ({ slug }));
+}
