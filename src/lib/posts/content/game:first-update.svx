@@ -21,3 +21,57 @@ Whats working:
   <source src="https://dek691o7llrph.cloudfront.net/game/first-update.webm" type="video/webm" />
   <track kind="captions" />
 </video>
+
+## It's pretty basic, but it's working
+
+```rust
+impl Game {
+    pub fn get_state(&self) -> &Arc<Mutex<GameState>> {
+        &self.state
+    }
+
+    pub async fn input(
+        &mut self,
+        user_id: String,
+        object_id: String,
+        rotation: f32,
+        x: i32,
+        y: i32,
+        hidden: bool,
+        animation: Option<String>,
+    ) -> &Self {
+        let mut state = self.get_state().lock().await;
+        if let Some(object) = state.visible_objects.get_mut(&object_id) {
+            if object.controller_user_id.as_ref() == Some(&user_id) {
+                object.rotation = rotation;
+                object.x = x;
+                object.y = y;
+                object.hidden = hidden;
+                object.animation = animation;
+            }
+        }
+
+        self
+    }
+
+    pub async fn action(&mut self, user_id: String, object_id: String) -> AppResult<&Self> {
+        let action_opt = {
+            let mut state = self.get_state().lock().await;
+            state
+                .visible_objects
+                .get_mut(&object_id)
+                .and_then(|object| object.action.clone())
+        };
+
+        if let Some(action) = action_opt {
+            action
+                .action
+                .apply(Arc::clone(self.get_state()), object_id, user_id)
+                .await
+                .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+        }
+
+        Ok(self)
+    }
+}
+```
