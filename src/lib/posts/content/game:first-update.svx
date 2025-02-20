@@ -3,18 +3,15 @@ description: Attempting to create a multiplayer game
 date: 1739734483
 image: /posts/projects/2fa/screenshot.png
 category: Game
-title: Desktop Game
+title: Building a Multiplayer Crime RPG with Rust and Axum
 tags:
   - "Rust"
   - "Svelte"
   - "Tauri"
 ---
 
-# Game idea
 
-Whats working:
-- Multiplayer
-- Car collision
+# Building a Multiplayer Crime RPG with Rust and Axum
 
 <video id="player" playsinline controls >
   <source src="https://dek691o7llrph.cloudfront.net/game/first-update.mp4" type="video/mp4" />
@@ -22,56 +19,168 @@ Whats working:
   <track kind="captions" />
 </video>
 
-## It's pretty basic, but it's working
 
-```rust
-impl Game {
-    pub fn get_state(&self) -> &Arc<Mutex<GameState>> {
-        &self.state
-    }
 
-    pub async fn input(
-        &mut self,
-        user_id: String,
-        object_id: String,
-        rotation: f32,
-        x: i32,
-        y: i32,
-        hidden: bool,
-        animation: Option<String>,
-    ) -> &Self {
-        let mut state = self.get_state().lock().await;
-        if let Some(object) = state.visible_objects.get_mut(&object_id) {
-            if object.controller_user_id.as_ref() == Some(&user_id) {
-                object.rotation = rotation;
-                object.x = x;
-                object.y = y;
-                object.hidden = hidden;
-                object.animation = animation;
-            }
-        }
+The gaming world has always been fascinated with crime-themed RPGs---dynamic, open-world experiences where players take on roles as criminals, law enforcement, or civilians in an ever-evolving virtual city. Inspired by this vision, I've been building a multiplayer game in **Rust**, leveraging **Axum** for networking, **Tokio** for async operations, and a custom-built map system that integrates traffic, AI, and player interactions.
 
-        self
-    }
+This post will break down the architecture behind this ambitious project, from handling game state to implementing vehicles and player movement.
 
-    pub async fn action(&mut self, user_id: String, object_id: String) -> AppResult<&Self> {
-        let action_opt = {
-            let mut state = self.get_state().lock().await;
-            state
-                .visible_objects
-                .get_mut(&object_id)
-                .and_then(|object| object.action.clone())
-        };
+* * * * *
 
-        if let Some(action) = action_opt {
-            action
-                .action
-                .apply(Arc::clone(self.get_state()), object_id, user_id)
-                .await
-                .map_err(|e| AppError::InternalServerError(e.to_string()))?;
-        }
+Designing the Core Game Objects
+-------------------------------
 
-        Ok(self)
+At the heart of the game are **GameObjects**, which represent players, cars, and other dynamic entities. Each game object has properties like position, velocity, and ownership, along with unique details for different types of entities. Here's how we structure a generic outgoing game object:
+
+```
+#[derive(Type, Serialize, Deserialize, Debug, Clone)]
+pub struct OutgoingGameObject {
+    pub id: String,
+    pub x: i32,
+    pub y: i32,
+    pub rotation: f32,
+    pub velocity: Coordinates,
+    pub owner_user_id: String,
+    pub controller_user_id: Option<String>,
+    pub details: GameObjectInfo,
+    pub action: Option<ActionTrigger>,
+}
+```
+
+This allows the game server to communicate object updates efficiently to clients. Whether a player is walking or driving, their state is broadcasted consistently.
+
+* * * * *
+
+Bringing the City to Life with AI and Traffic
+---------------------------------------------
+
+To create a living, breathing city, we need more than just players---there should be AI-driven traffic and pedestrian behavior. Vehicles in our game are represented using the `CarDetails` struct:
+
+```
+#[derive(Type, Deserialize, Serialize, Debug, Clone)]
+pub struct CarDetails {
+    pub skin: CarSkin,
+    pub speed: u16,
+    pub max_passengers: u8,
+    pub passenger_user_ids: Vec<String>,
+    pub rotation_speed: u16,
+    pub driver_user_id: Option<String>,
+}
+```
+
+The AI traffic system will manage the flow of vehicles, dynamically spawning and despawning them based on road conditions and congestion levels. This ensures a realistic simulation of a bustling urban environment.
+
+* * * * *
+
+Implementing Player Movement and Controls
+-----------------------------------------
+
+A player's movement is processed through user input, where the server updates their coordinates and rotation based on client commands:
+
+```
+impl Player {
+    pub fn input(&mut self, input: PlayerInput) {
+        self.x = input.x;
+        self.y = input.y;
+        self.rotation = input.rotation;
     }
 }
 ```
+
+Players can seamlessly transition from walking to driving by interacting with vehicles. The `Car` struct facilitates this interaction, updating its `driver_user_id` whenever a player takes control.
+
+* * * * *
+
+Action System: Driving, Entering Buildings, and More
+----------------------------------------------------
+
+Actions in the game are triggered using an event-based system. For example, pressing a key while near a car initiates a `Car.action()` function, setting the player as the driver:
+
+```
+impl Car {
+    fn action(&mut self, user_id: String) {
+        self.driver_user_id = Some(user_id);
+    }
+}
+```
+
+This modular approach allows for expandability---new actions like opening doors, interacting with NPCs, or even robbing banks can be added without overhauling the core logic.
+
+* * * * *
+
+Game State Management
+---------------------
+
+A real-time multiplayer game needs a robust state management system. We use a **Mutex-protected HashMap** to store active players and objects:
+
+```
+pub struct GameState {
+    pub players: HashMap<String, Player>,
+    pub objects: HashMap<String, GameObject>,
+}
+```
+
+By wrapping the state in an ArcMutex, we ensure safe, concurrent access across async functions in our Axum-based backend.
+
+* * * * *
+
+Synchronizing the Game World with Clients
+-----------------------------------------
+
+To prevent desync between players, the server periodically pushes updates to all connected clients. The `to_outgoing_game_object()` method converts internal game objects into network-friendly representations:
+
+```
+impl Car {
+    pub fn to_outgoing_game_object(&self) -> OutgoingGameObject {
+        OutgoingGameObject {
+            id: self.id.clone(),
+            x: self.x.clone(),
+            y: self.y.clone(),
+            rotation: self.rotation.clone(),
+            velocity: self.velocity.clone(),
+            owner_user_id: self.id.clone(),
+            controller_user_id: self.driver_user_id.clone(),
+            details: GameObjectInfo::Car(self.to_car_details()),
+            action: Some(ActionTrigger::new(32)),
+        }
+    }
+}
+```
+
+Clients receive these updates and render the game world accordingly.
+
+* * * * *
+
+Expanding the World: Grid-Based Map System
+------------------------------------------
+
+To handle large-scale environments efficiently, we designed a **grid-based map system** where roads, buildings, and objects are placed on tiles. Buildings can only spawn along designated road types, and traffic dynamically follows paths determined by the road network.
+
+This design allows for **procedural city generation**, ensuring unique layouts with every playthrough.
+
+* * * * *
+
+What's Next?
+------------
+
+This is just the beginning! Upcoming features include:
+
+-   **Combat mechanics**: Players can engage in shootouts or melee fights.
+
+-   **AI-driven law enforcement**: Police NPCs will respond to criminal activities.
+
+-   **Property ownership**: Players can purchase safe houses and businesses.
+
+-   **Persistent economy**: Players can earn money, buy weapons, and engage in illicit trades.
+
+The goal is to create an immersive, dynamic world where every decision impacts the experience.
+
+* * * * *
+
+Final Thoughts
+--------------
+
+Building a multiplayer crime RPG from scratch in Rust is an exciting challenge. The language's **performance**, **memory safety**, and **async capabilities** make it ideal for handling real-time game logic.
+
+This project is a work in progress, but every step brings us closer to a living, breathing online crime world. Stay tuned for more updates, and feel free to contribute ideas or feedback!
+
