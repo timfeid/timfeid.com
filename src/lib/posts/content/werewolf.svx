@@ -1,6 +1,6 @@
 ---
 description: A real-time multiplayer Werewolf web app built with TypeScript, Vue.js, and Docker.
-date: 1738964598
+date: 1571722311
 image: /posts/projects/werewolf/screenshot.png
 category: Projects
 title: Werewolf Web App

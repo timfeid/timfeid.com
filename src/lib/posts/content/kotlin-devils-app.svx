@@ -1,6 +1,6 @@
 ---
 description: An unofficial New Jersey Devils Android app written in Kotlin.
-date: 1738964598
+date: 1569130433
 image: /posts/projects/kotlin-devils/screenshot.png
 category: Projects
 title: New Jersey Devils Android App

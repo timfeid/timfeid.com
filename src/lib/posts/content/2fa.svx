@@ -1,6 +1,6 @@
 ---
 description: A two-factor authentication (2FA) desktop application built with Rust, SvelteKit, and Tauri.
-date: 1738964598
+date: 1724304833
 image: /posts/projects/2fa/screenshot.png
 category: Projects
 title: 2FA Desktop Application

@@ -1,0 +1,156 @@
+---
+description: Attempting to create a multiplayer game - update 1
+date: 1740185979
+image: /posts/game/car-update.png
+category: Game
+title: Multiplayer Crime RPG Devlog - Update 1 - Smarter Vehicles & AI
+tags:
+  - "AI"
+---
+
+# Multiplayer Crime RPG Devlog - Update 1: Smarter Vehicles & AI
+
+The gaming world has always been fascinated with crime-themed RPGs—dynamic, open-world experiences where players take on roles as criminals, law enforcement, or civilians in an ever-evolving virtual city. Inspired by this vision, I've been building a multiplayer game in **Rust**, leveraging **Axum** for networking, **Tokio** for async operations, and a custom-built map system that integrates traffic, AI, and player interactions.
+
+This post will break down the architecture behind this ambitious project, from handling game state to implementing vehicles and player movement.
+
+---
+
+<video id="player" playsinline controls class="w-full max-w-full">
+  <source src="https://dek691o7llrph.cloudfront.net/game/second-update.mp4" type="video/mp4" />
+  <source src="https://dek691o7llrph.cloudfront.net/game/second-update.webm" type="video/webm" />
+  <track kind="captions" />
+</video>
+
+## Introducing Vehicle Behaviors
+
+With the latest update, we've introduced **Vehicle Behaviors**, adding more depth to how AI and player-controlled vehicles interact with the world. The `VehicleBehavior` enum defines three distinct driving styles:
+
+```rust
+#[derive(Type, Deserialize, Serialize, Debug, Clone)]
+pub enum VehicleBehavior {
+    Cautious,
+    Normal,
+    Aggressive,
+}
+```
+
+Each behavior affects acceleration and max speed, making cautious drivers slow but safe, while aggressive drivers push the limits of the road.
+
+---
+
+## Improved Vehicle System
+
+We revamped the vehicle system to support **pathfinding and movement updates**. Vehicles now maintain a path using a `VecDeque`, dynamically adjusting their movement based on the route:
+
+```rust
+pub struct Vehicle {
+    pub id: String,
+    pub position: Coordinates,
+    pub behavior: VehicleBehavior,
+    pub path: VecDeque<Coordinates>,
+    pub skin: CarSkin,
+    pub current_speed: u16,
+    pub acceleration: u16,
+    pub max_speed: u16,
+    pub rotation_speed: u16,
+    pub driver_user_id: Option<String>,
+    pub passenger_user_ids: Vec<String>,
+    pub rotation: f32,
+    pub velocity: Coordinates,
+}
+```
+
+---
+
+## Smarter Vehicle Navigation
+
+Vehicles now **follow paths intelligently**, updating their positions dynamically. The `update_position` function calculates movement toward a target tile while adjusting the vehicle’s rotation based on its trajectory:
+
+```rust
+pub fn update_position(&mut self) {
+    if let Some(target) = self.path.front() {
+        if self.current_speed < self.max_speed {
+            self.current_speed += self.acceleration;
+            if self.current_speed > self.max_speed {
+                self.current_speed = self.max_speed;
+            }
+        }
+
+        let dx = target.x - self.position.x;
+        let dy = target.y - self.position.y;
+        let distance = ((dx * dx + dy * dy) as f64).sqrt();
+
+        let desired_angle = (dy as f64).atan2(dx as f64) + std::f64::consts::FRAC_PI_2;
+        let current_angle = self.rotation as f64;
+        let mut angle_diff = desired_angle - current_angle;
+
+        while angle_diff < -std::f64::consts::PI {
+            angle_diff += 2.0 * std::f64::consts::PI;
+        }
+        while angle_diff > std::f64::consts::PI {
+            angle_diff -= 2.0 * std::f64::consts::PI;
+        }
+
+        let rotation_change = if angle_diff.abs() < self.rotation_speed as f64 {
+            angle_diff
+        } else {
+            self.rotation_speed as f64 * angle_diff.signum()
+        };
+        self.rotation = (current_angle + rotation_change) as f32;
+
+        if distance < self.current_speed as f64 {
+            self.position = self.path.pop_front().unwrap();
+        } else {
+            let norm_x = dx as f64 / distance;
+            let norm_y = dy as f64 / distance;
+            self.position.x += (norm_x * self.current_speed as f64).round() as i32;
+            self.position.y += (norm_y * self.current_speed as f64).round() as i32;
+        }
+    }
+}
+```
+
+This allows vehicles to move smoothly along their designated routes, maintaining realistic acceleration and turning mechanics.
+
+
+---
+
+## Adding Waypoints to Vehicles
+
+A crucial aspect of vehicle navigation is setting waypoints. Here’s an example of how a vehicle can be instantiated and assigned a path:
+
+```rust
+let mut vehicle = Vehicle::new(
+    "tim's car".to_string(),
+    Coordinates { x: 160, y: 368 },
+    vehicle::VehicleBehavior::Normal,
+    2,
+);
+
+let path = map
+    .find_path(
+        pixel_to_tile(vehicle.position),
+        pixel_to_tile(Coordinates { x: 1360, y: 1360 }),
+    )
+    .expect("no path found");
+
+vehicle.set_tile_path(path);
+```
+
+This snippet shows how a vehicle is initialized and given a waypoint-based path, ensuring smooth movement within the game world.
+
+---
+
+
+
+## Future Plans
+
+With vehicle behaviors and smarter pathfinding in place, the next steps include:
+
+- **Traffic System Overhaul**: Implementing AI-driven traffic lights and intersections.
+- **Vehicle Ownership & Upgrades**: Players can own and modify cars.
+- **Collision Detection**: Adding hitboxes and physics interactions.
+
+The journey continues, and Rust has proven to be an incredible language for building high-performance multiplayer experiences. Stay tuned for more updates, and let me know what features you'd love to see next! 🚗💨
+

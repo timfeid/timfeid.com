@@ -1,7 +1,7 @@
 ---
 description: Attempting to create a multiplayer game
 date: 1739734483
-image: /posts/projects/2fa/screenshot.png
+image: /posts/game/first.png
 category: Game
 title: Building a Multiplayer Crime RPG with Rust and Axum
 tags:
@@ -13,7 +13,7 @@ tags:
 
 # Building a Multiplayer Crime RPG with Rust and Axum
 
-<video id="player" playsinline controls >
+<video id="player" playsinline controls  class="w-full max-w-full">
   <source src="https://dek691o7llrph.cloudfront.net/game/first-update.mp4" type="video/mp4" />
   <source src="https://dek691o7llrph.cloudfront.net/game/first-update.webm" type="video/webm" />
   <track kind="captions" />

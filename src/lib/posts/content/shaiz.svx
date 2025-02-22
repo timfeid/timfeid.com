@@ -1,6 +1,6 @@
 ---
 description: A Rust-based command-line tool for seamless GPT-powered interactions within the terminal.
-date: 1738964598
+date: 1732430033
 image: /posts/projects/shaiz/screenshot.png
 category: Projects
 title: Shaiz - AI-Powered Shell Companion
