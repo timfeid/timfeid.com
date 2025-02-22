@@ -79,6 +79,8 @@ a {
 }
 
 .prose {
+	width: 100%;
+	overflow: hidden;
 	img {
 		@apply rounded-lg;
 	}
