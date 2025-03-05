@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Right from '$lib/components/app/right.svg?component';
 	import Page from '../lib/components/app/page.svelte';
+	import GithubRepo from '../lib/components/app/project/github-repo.svelte';
 	import { Badge } from '../lib/components/ui/badge';
 	import Button from '../lib/components/ui/button/button.svelte';
 	import {
@@ -88,12 +89,18 @@
 			id="game"
 			class="container mx-auto flex min-h-screen w-full flex-col justify-center px-6 py-8 md:px-4"
 		>
-			<h1 class="mb-3 mb-6 text-center text-3xl font-bold uppercase">Game updates</h1>
-			<div class="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+			<h1 class="mb-1 text-center text-3xl font-bold uppercase">Game updates</h1>
+			<div class="my-6 grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
 				{#each blogPosts as post}
 					{@render postCard(post)}
 				{/each}
 			</div>
+			<GithubRepo
+				class="mb-1 self-center"
+				link="https://github.com/timfeid/hmmm"
+				repo="timfeid/hmmm"
+			/>
+			<p class="text-center text-sm text-neutral-500 italic">name still in progress</p>
 		</section>
 	</div>
 </Page>
