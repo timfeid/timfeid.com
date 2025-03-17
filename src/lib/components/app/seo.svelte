@@ -12,6 +12,8 @@
 			? title
 			: `${title} - timfeid.com`;
 
+	image = image || 'https://timfeid.com/posts/projects/timfeid.com/screenshot.png';
+
 	metaProperties = [
 		{ charSet: 'utf-8' },
 		{ name: 'description', content: description },
