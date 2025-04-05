@@ -1,0 +1,23 @@
+---
+description: Creating a real time messaging and audio/video streaming lobbies
+date: 1743890592
+image: /posts/talky/001-p.png
+category: blog
+title: Building a Discord clone with Rust/SvelteKit
+tags:
+  - "Rust"
+  - "Svelte"
+  - "Tauri"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Building a Discord clone with Rust/SvelteKit
+
+![Screenshot](/posts/talky/001.png)
+
+... ai failed to write something cool so check back
+
+<GithubRepo repo="timfeid/home" link="https://github.com/timfeid/home" />

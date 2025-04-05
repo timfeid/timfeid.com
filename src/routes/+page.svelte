@@ -89,7 +89,7 @@
 			id="game"
 			class="container mx-auto flex min-h-screen w-full flex-col justify-center px-6 py-8 md:px-4"
 		>
-			<h1 class="mb-1 text-center text-3xl font-bold uppercase">Game updates</h1>
+			<h1 class="mb-1 text-center text-3xl font-bold uppercase">Updates</h1>
 			<div class="my-6 grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
 				{#each blogPosts as post}
 					{@render postCard(post)}
