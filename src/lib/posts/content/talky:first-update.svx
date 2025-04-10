@@ -2,7 +2,7 @@
 description: Creating a real time messaging and audio/video streaming lobbies
 date: 1743890592
 image: /posts/talky/001-p.png
-category: blog
+category: talky
 title: Building a Discord clone with Rust/SvelteKit
 tags:
   - "Rust"

@@ -1,0 +1,291 @@
+---
+description: Creating a real time messaging and audio/video streaming lobbies
+date: 1744326876
+image: /posts/talky/002-p.png
+category: talky
+title: Building a Discord clone with Rust/SvelteKit
+tags:
+  - "Rust"
+  - "Svelte"
+  - "Tauri"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Talky - Svelte + Rust + Tauri multi media messaging
+
+<sup>name, talky, still a work in progress</sup>
+
+![Screenshot](/posts/talky/002.png)
+
+### Introducing the lobbies concept
+You can now create & join voice lobbies
+
+### Channels
+Channels allows you to follow certain topics. For now they are all chats
+
+## Niches
+For now I've created one niche, `Hockey`
+
+# Nerd stuff
+
+## Tauri integration
+
+Talky leverages Tauri as the bridge between our Rust backend and SvelteKit frontend, creating a performant, secure desktop application with near-native capabilities. Here's how we've structured the integration:
+
+### Cross-platform architecture
+
+The application follows a hybrid architecture where:
+- SvelteKit provides the interactive UI layer
+- Rust powers the core functionality through Tauri commands
+- Native system APIs are accessed directly through Rust
+
+This approach gives us the best of both worlds: web-based UI flexibility with Svelte and native-level performance with Rust.
+
+### Audio capture and WebRTC integration
+
+One of the most critical features is real-time audio communication, implemented entirely in Rust:
+
+- We use `cpal` for direct access to system audio devices
+- Audio processing is handled by the `AudioProcessor` class which:
+  - Implements voice activation detection
+  - Supports push-to-talk functionality
+  - Processes audio frames through Opus encoding
+- WebRTC connections are established using Rust's WebRTC implementation
+
+The frontend can control audio settings through Tauri's command system:
+
+```rust
+#[tauri::command]
+pub async fn toggle_push_to_talk(
+    active: bool,
+    state: tauri::State<'_, WebRTCManager>,
+) -> Result<(), String> {
+    if let Some(audio) = &*state.audio.read().await {
+        let mut capture_control = audio.capture_control.lock().await;
+        capture_control.set_push_to_talk(active);
+        println!("Push-to-talk {}activated", if active { "" } else { "de" });
+    }
+    Ok(())
+}
+```
+
+### State management and persistence
+
+We use Tauri's plugin system to manage persistent state:
+
+- `tauri-plugin-store` handles secure storage of user credentials
+- Refresh tokens are stored locally using platform-specific secure storage:
+
+```rust
+#[tauri::command]
+pub async fn set_refresh_token(
+    app: AppHandle,
+    token: String,
+) -> Result<(), tauri_plugin_store::Error> {
+    let path = app
+        .path()
+        .app_data_dir()
+        .expect("unable to find data dir")
+        .join("data.json");
+
+    let store = app.store(path)?;
+    store.set("refresh_token".to_string(), json!(token));
+    Ok(())
+}
+```
+
+### Frontend/backend communication
+
+The application uses a dual communication system:
+
+1. **Command-based IPC** - For direct function calls from frontend to backend
+2. **Event-based messaging** - For asynchronous updates and real-time notifications
+
+For example, we use events to send audio levels to the frontend for visualization:
+
+```rust
+let payload = AudioDataPayload {
+    level: db_level,
+    rms,
+    sample_rate: stream_config.sample_rate.0,
+    channels: channels as u16,
+};
+
+app_handle_clone.emit("microphone-data", payload);
+```
+
+### Performance benefits
+
+By implementing performance-critical features in Rust rather than JavaScript, we achieve:
+
+- Lower latency for audio processing (essential for real-time communication)
+- Reduced CPU usage compared to browser-based WebRTC
+- Better memory management with precise control
+- Direct access to system APIs without browser sandboxing limitations
+
+### Bundling and distribution
+
+Tauri simplifies our build and distribution workflow by:
+- Creating native binaries for Windows, macOS, and Linux
+- Managing application signatures and installation packages
+- Providing automatic updates through its built-in mechanism
+- Handling platform-specific quirks and dependencies
+
+This integration demonstrates how modern desktop applications can combine web technologies with native performance, creating experiences that are both flexible for developers and performant for users.
+
+## TypeScript Type Generator for Soundhouse
+
+This tool converts Rust types into TypeScript definitions using [`specta`](https://docs.rs/specta) and writes them to a `types.d.ts` file. It's designed to keep the frontend (written in TypeScript/SvelteKit) and backend (written in Rust) in perfect sync — eliminating guesswork and runtime bugs due to type mismatches.
+
+### How it works
+
+Inside `main.rs`, we use the `specta_typescript::export` function to generate TypeScript-compatible type definitions for key shared data structures used in `soundhouse`, a Rust-based WebRTC audio streaming server with WebSocket signaling and Opus audio encoding.
+
+These Rust types include:
+
+- `MessageResource` — the structure for chat or audio messages
+- `UserResource` — information about each user in a room
+- `UserRoomResource` — metadata about a user's participation in a specific room
+- `ClientInfoMsg` — info sent by the client on connection
+- `RoomResource` — defines a room’s state
+- `IncomingMessage` / `OutgoingMessage` — real-time message formats
+- `Value` — for any extra dynamic payloads (via `serde_json`)
+
+### Why it’s cool
+
+- **Single Source of Truth**: Define your types in Rust, and automatically generate matching TypeScript types.
+- **Eliminates Drift**: Changes in backend data structures immediately reflect in the frontend by running this script.
+- **Strongly Typed Frontend**: Makes using `soundhouse` on the frontend seamless, with full autocompletion and type checking.
+- **Smooth Dev Experience**: Paired with tools like Tauri and SvelteKit, this enables full-stack Rust+TS workflows with near-native performance.
+
+### Usage
+
+Simply run:
+
+```bash
+cargo run --bin export-types
+```
+
+## Database, so far
+### Custom Types
+#### `channel_type` (ENUM)
+Describes the type of a channel.
+
+- `chat`
+- `feed`
+- `multi_media`
+
+---
+
+### Tables
+
+---
+
+#### `niches`
+Defines niche categories.
+
+| Column | Type | Notes        |
+|--------|------|--------------|
+| id     | text | Primary key  |
+| slug   | text | Unique       |
+| name   | text |              |
+
+---
+
+#### `categories`
+Organizes content under a niche.
+
+| Column   | Type | Notes                                |
+|----------|------|--------------------------------------|
+| id       | text | Primary key                          |
+| name     | text |                                      |
+| niche_id | text | Foreign key → `niches(id)`           |
+
+---
+
+#### `channels`
+Channels associated with categories.
+
+| Column      | Type                 | Notes                                  |
+|-------------|----------------------|----------------------------------------|
+| id          | text                 | Primary key                            |
+| name        | text                 |                                        |
+| slug        | text                 | Unique                                 |
+| type        | `channel_type`       | ENUM: `chat`, `feed`, `multi_media`   |
+| category_id | text                 | Foreign key → `categories(id)`        |
+| is_temporary| boolean              | Default: `false`                       |
+
+---
+
+#### `lobbies`
+Represents interactive spaces or rooms.
+
+| Column        | Type | Notes                               |
+|---------------|------|-------------------------------------|
+| id            | text | Primary key                         |
+| name          | text |                                     |
+| owner_user_id | text | Foreign key → `users(id)`           |
+| channel_id    | text | Foreign key → `channels(id)`        |
+
+---
+
+#### `messages`
+User-generated messages within a channel.
+
+| Column     | Type            | Notes                                 |
+|------------|-----------------|---------------------------------------|
+| id         | text            | Primary key                           |
+| contents   | text            |                                       |
+| channel_id | text            | Foreign key → `channels(id)`         |
+| created_at | timestamp(3)    | Default: `CURRENT_TIMESTAMP`         |
+| user_id    | text            | Foreign key → `users(id)`            |
+
+---
+
+#### `refresh_tokens`
+Authentication tokens for users.
+
+| Column     | Type            | Notes                                 |
+|------------|-----------------|---------------------------------------|
+| token      | text            | Primary key                           |
+| user_id    | text            | Foreign key → `users(id)`            |
+| created_at | timestamp(3)    | Default: `CURRENT_TIMESTAMP`         |
+| updated_at | timestamp(3)    | Default: `CURRENT_TIMESTAMP`         |
+| deleted_at | timestamp(3)    | Nullable                              |
+
+---
+
+#### `users`
+User accounts.
+
+| Column   | Type | Notes       |
+|----------|------|-------------|
+| id       | text | Primary key |
+| password | text |             |
+
+---
+
+### Relationships
+
+- `categories.niche_id` → `niches.id`
+- `channels.category_id` → `categories.id`
+- `lobbies.channel_id` → `channels.id`
+- `lobbies.owner_user_id` → `users.id`
+- `messages.channel_id` → `channels.id`
+- `messages.user_id` → `users.id`
+- `refresh_tokens.user_id` → `users.id`
+
+---
+
+### Constraints
+
+- Unique: `channels.slug`, `niches.slug`
+- Primary Keys: All `id`/`token` fields where defined
+- Foreign keys with `ON UPDATE CASCADE`, `ON DELETE RESTRICT`
+
+---
+
+<GithubRepo repo="timfeid/home" link="https://github.com/timfeid/home" />
