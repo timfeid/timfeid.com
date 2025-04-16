@@ -1,0 +1,253 @@
+---
+description: Adding bots/api integration
+date: 1744762427
+image: /posts/talky/003.png
+category: talky
+title: Talky - Adding bots/api integration
+tags:
+  - "Rust"
+  - "Svelte"
+  - "Tauri"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Talky - Adding bots/api integration
+
+<sup>name, talky, still a work in progress</sup>
+
+
+## Introduction
+
+After getting the basic chat functionality working in Talky, I wanted to add some bot integration to make the app more useful and fun. The goal was to create a flexible command system that could be easily extended with new features over time.
+
+## Designing the Bot Framework
+
+I started by implementing a WebSocket-based client that could connect to the Talky server. This client handles:
+
+- Connection management with automatic reconnection
+- Authentication
+- Message sending and receiving
+- Event-based messaging
+
+For the bot framework itself, I went with a service-oriented architecture where:
+
+1. Commands are registered in a central registry
+2. Each command has a standard structure (name, description, usage, handler)
+3. Commands are grouped into "services" for organization
+4. Commands are triggered with a configurable prefix (like "!")
+
+## Command Registry
+
+The core of the system is the `CommandRegistry` which maintains a map of commands and handles parsing user messages:
+
+```typescript
+export class CommandRegistry {
+  private readonly commands = new Map<string, Command>();
+  private readonly client: TalkyClient;
+  public readonly trigger: string;
+
+  constructor(client: TalkyClient, trigger: string) {
+    this.client = client;
+    this.trigger = trigger;
+  }
+
+  registerCommand(command: Command): void {
+    // Register the command and its aliases
+  }
+
+  async handleMessage(msg: IncomingMessage): Promise<void> {
+    // Parse the message and execute the appropriate command
+  }
+}
+```
+
+## Service-Based Command Organization
+
+Rather than registering commands individually, I created a `CommandService` abstract class that services can extend:
+
+```typescript
+export abstract class CommandService {
+  protected registry: CommandRegistry;
+  constructor(registry: CommandRegistry) {
+    this.registry = registry;
+  }
+  abstract getCommands(): Command[];
+}
+```
+
+This allows me to organize commands into logical groups like:
+
+- Core commands (ping, help)
+- Movie information commands
+- NHL standings commands
+- Planetary info commands (just for fun)
+
+## Implementing Some Fun Services
+
+### Movie Information
+
+One of the first services I implemented was the `MovieInfoCommandsService`. This service provides commands for looking up movie information using an external API. The primary command is `find`, which searches for movies by title.
+
+```typescript
+// This is how the command is used in the service
+{
+  name: 'find',
+  description: 'Find a movie by title',
+  usage: `${this.registry.trigger}find <movie title>`,
+  handler: this.findHandler.bind(this)
+}
+```
+
+When a user types something like `!find The Matrix`, the bot queries the movie API and returns information about the movie including title, release date, rating, and a brief description.
+
+![Screenshot](/posts/talky/003.png)
+
+### NHL Standings
+
+I'm a big hockey fan, so I also implemented a service for NHL standings. This service has commands like `nhl stands` to get current division standings:
+
+```typescript
+// This is how the command is used in the service
+{
+  name: 'stands',
+  aliases: ['standings'],
+  description: 'Get NHL standings',
+  usage: `${this.registry.trigger}nhl stands [division]`,
+  handler: this.standsHandler.bind(this)
+}
+```
+
+When a user types `!nhlstandings`, the bot fetches the current standings.
+![Screenshot](/posts/talky/004.png)
+
+### Quantum Communications (Just for Fun)
+
+I also added a fun `QuantumCommsService` that simulates quantum entanglement for "instant" communication:
+
+```typescript
+class QuantumCommsService extends CommandService {
+  private entangledPairs: Record<string, string> = {};
+
+  getCommands(): Command[] {
+    return [
+      {
+        name: 'entangle',
+        description: 'Creates a simulated quantum entanglement pair for instant communication.',
+        handler: this.entangleHandler.bind(this)
+      },
+      {
+        name: 'qsend',
+        description: 'Sends a message instantly via simulated entanglement.',
+        handler: this.qsendHandler.bind(this)
+      }
+    ];
+  }
+}
+```
+
+This lets users "entangle" quantum particles and then send messages via "quantum entanglement" (it's just for fun, obviously).
+
+## Starting the Bot
+
+Starting the bot is simple:
+
+```typescript
+export async function startBot(
+  options: EventClientOptions,
+  trigger: string,
+  serviceConfigurator: (registry: CommandRegistry) => CommandService[] = configureMyQuantumBotServices
+): Promise<void> {
+  const client = new TalkyClient(options);
+  const registry = new CommandRegistry(client, trigger);
+
+  const services = serviceConfigurator(registry);
+  services.forEach(service => registry.registerService(service));
+
+  // Set up event handlers
+  client.on('chat_message', async (msg: IncomingMessage) => {
+    // Handle incoming messages
+    await registry.handleMessage(msg);
+  });
+
+  // Handle graceful shutdown
+  // ...
+}
+```
+
+This design allows me to easily configure which services are available to the bot by passing a custom `serviceConfigurator` function.
+
+## Challenges and Solutions
+
+### Message Parsing
+
+One challenge was parsing command arguments correctly. Initially, I just split the message on whitespace, but this doesn't handle quoted arguments well. I ended up implementing a more sophisticated parser:
+
+```typescript
+function parseCommand(messageContent: string, trigger: string): ParsedCommand | null {
+  const trimmedMessage = messageContent.trim();
+  if (!trimmedMessage.startsWith(trigger)) {
+    return null;
+  }
+  const parts = trimmedMessage.substring(trigger.length).trim().split(/\s+/);
+  const command = parts[0]?.toLowerCase();
+  if (!command) {
+    return null;
+  }
+  const args = parts.slice(1);
+  return { trigger, command, args, originalMessage: messageContent };
+}
+```
+
+This approach works well for simple commands but will need to be enhanced for more complex argument parsing in the future.
+
+### Connection Management
+
+Another challenge was managing WebSocket connections reliably. To handle this, I implemented exponential backoff for reconnections:
+
+```typescript
+private scheduleReconnect(): void {
+  if (this.reconnectTimer) {
+    clearTimeout(this.reconnectTimer);
+  }
+
+  if (this.reconnectAttempts >= this.reconnectMaxAttempts) {
+    this.emit('reconnect_failed');
+    return;
+  }
+
+  const delay = Math.min(Math.pow(2, this.reconnectAttempts) * 1000, this.reconnectMaxDelay);
+
+  this.emit('reconnect_attempt', {
+    attempt: this.reconnectAttempts + 1,
+    delay,
+  });
+
+  this.reconnectTimer = setTimeout(() => {
+    this.reconnectAttempts++;
+    this.connect();
+  }, delay);
+}
+```
+
+This ensures that the bot tries to reconnect with increasing delays up to a maximum delay, preventing it from hammering the server during outages.
+
+## Future Improvements
+
+There are several things I'd like to add to the bot framework in the future:
+
+1. **Better Command Arguments**: Add support for quoted arguments, flags, and more complex syntax
+2. **Permission System**: Add user permissions to restrict certain commands to specific users or roles
+3. **Rate Limiting**: Implement rate limiting to prevent spam/abuse of commands
+4. **Rich Messages**: Add support for rich content in bot responses (images, interactive elements, etc.)
+5. **More Services**: I plan to add services for weather, reminders, and other useful functionality
+
+## Conclusion
+
+Adding bot support to Talky has been a fun project that adds a lot of utility to the chat application. The service-based architecture makes it easy to add new features as I think of them, and the command system provides a familiar interface for users.
+
+I'm excited to continue expanding the bot's capabilities and integrating with more external APIs. If you have ideas for commands or services that would be useful, let me know in the comments!
+
+<GithubRepo repo="timfeid/home" link="https://github.com/timfeid/home" />
