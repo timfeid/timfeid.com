@@ -1,9 +1,9 @@
 ---
-description: Adding workflows
+description: Inside Talky's Workflow Engine - A Deep Dive into Stateful Command Workflows
 date: 1744936027
 image: /posts/talky/006.png
 category: talky
-title: Talky - Adding a workflow integration
+title: Talky - Adding a workflow integration for bots
 tags:
   - "Rust"
   - "Svelte"
@@ -14,220 +14,103 @@ tags:
   import GithubRepo from '$lib/components/app/project/github-repo.svelte'
 </script>
 
-# Talky - Adding a workflow integration
+# Talky - Adding a workflow integration for bots
 
 <sup>name, talky, still a work in progress</sup>
 
+![Screenshot](/posts/talky/005.webp)
 
-![Screenshot](/posts/talky/005.gif)
+The Talky platform supports a sophisticated command workflow engine that enables dynamic, stateful, and user-driven interactions. This system powers bots and assistants that operate through multi-step processes, optionally involving internal logic and external integrations. In this post, we'll explore the internals of this engine, which is built in Rust and orchestrated using an asynchronous, lock-safe architecture.
 
-## Building the `MovieInfoCommandsService`: Structured Chat Commands and Interactive Workflows
+## Architecture: Nodes, Actions, and State
 
-We’ve recently introduced a new feature: the `MovieInfoCommandsService`, designed to give users a seamless way to fetch movie and television information directly through chat. This feature not only exposes a series of powerful commands, but also introduces an interactive guided workflow for discovering and following shows.
+At the heart of Talky's workflow engine is a finite-state model defined by **workflow nodes** and **actions**. Each workflow is represented by a `WorkflowDefinition` which includes a graph of `WorkflowNode` objects. Nodes contain prompts, inputs, and a list of `WorkflowAction` options the user can take. These actions determine how the workflow progresses: transition to another node, run a server-side process, or complete the workflow.
 
-In this post, we’ll explore how the service is structured, how it integrates with our workflow engine, and how we designed the node-based navigation and server-side actions behind the scenes.
+Each running instance of a workflow is tracked as a `WorkflowState`, which includes the current node ID, historical navigation, collected input responses, and completion status. These instances are kept in memory using a `Mutex<HashMap>` keyed by `instance_id`, supporting concurrent access with Tokio’s async runtime.
 
----
+## State Isolation and Concurrency
 
-## Goals
+The engine maintains three primary collections wrapped in `Arc<Mutex<...>>`:
 
-The goals for this feature were:
+- `workflows`: All registered workflow definitions (i.e., schemas)
+- `active_workflows`: In-progress workflow instances with live state
+- `server_action_handlers`: Callback registry for internal server-side logic
 
-- Provide a unified, chat-first interface for querying movies, series, episodes, and IMDb/TMDB data.
-- Introduce a conversational, UI-based workflow for guided content discovery.
-- Integrate seamlessly with the `WorkflowManager` for stateful interactions.
+This separation of static definitions and live instances ensures workflows can be reused across users, while still supporting per-user input and execution flow. Thanks to the Mutex-protected collections, Talky can safely manage state across concurrent user interactions without race conditions.
 
----
+## Server Actions: Internal and External
 
-## Command Registration
+A key feature of Talky's workflow engine is **server actions**. These are imperative logic blocks executed during workflows, usually triggered by a `WorkflowAction` with the `RunServerAction` type.
 
-At the core of the `MovieInfoCommandsService` is a set of commands registered via the `getCommands()` method. Each command defines a handler function that queries external APIs and formats the response for chat delivery.
+There are two kinds of server actions:
 
-### Examples:
+- **Internal server actions**: Defined and registered as closures using the `register_server_action()` method. These execute immediately and can update workflow state via `ServerActionResult`.
+- **External server actions**: Defined declaratively in the workflow but executed outside the Rust backend, such as by another microservice. These require an event-driven request/response handshake via Kafka and a temporary channel.
 
-```ts
-{
-  name: 'movie',
-  description: 'Gets information about a movie by title or IMDb ID.',
-  usage: '!movie <title or imdb id>',
-  handler: this.movieHandler.bind(this),
-}
-```
+External actions are tracked using a `HashMap<String, oneshot::Sender>` keyed by an ephemeral token. A timeout mechanism ensures that workflows don't hang indefinitely if no response arrives within the configured time window.
 
-We expose the following commands:
+## From Command to Execution
 
-- `movie` – Look up movie info by title or IMDb ID
-- `series` – Look up TV series info
-- `find` – Search for any title (movie or series)
-- `episode` – Get episode-specific data
-- `imdb` – Query directly by IMDb ID
-- `tmdbmovie`, `tmdbseries` – Query by TMDB IDs
-- `parse` – Extract season/episode info from filenames
-- `follow` – Launches a guided search workflow
+When a user triggers a command that maps to a workflow, the bot delegates to the `WorkflowService::start_command_workflow` function. This spins up a new `WorkflowState`, inserts it into memory, and emits an event via Kafka to notify other systems (e.g., UI renderers or external processors).
 
-Each command integrates with the `CommandRegistry`, enabling dynamic usage hints and standardized response handling.
+When the user submits an action, `process_action()` determines the action type and handles it accordingly. For example:
 
----
+- `NextNode` moves forward to a child node.
+- `RunServerAction` initiates internal or external logic.
+- `Submit` completes the workflow and captures final results.
 
-## The `follow` Command Workflow
+This switch-like behavior is centralized in `WorkflowManager::process_action`, which provides consistent branching and state updates.
 
-The `follow` command opens an interactive, node-based workflow that walks the user through searching and selecting a TV show to follow. This is built using the `WorkflowManager` infrastructure and consists of server actions, conditions, and nodes.
+## Conditional Logic and Branching
 
----
+Each node can define a `NodeCondition`, such as `ResponseExists`, `ResponseEquals`, or `ResponseListNotEmpty`. When resolving the next node in a flow, these conditions are evaluated using the current `WorkflowState.responses` map. This allows workflows to dynamically branch based on user input, making them highly expressive without hardcoding logic in the backend.
 
-## Server Action: `fetchTvShows`
+## Orchestration with Kafka
 
-This is a server-side handler that receives user input (a show name) and returns a list of matching titles via a third-party media API:
+Talky's workflow service integrates with Kafka to publish and consume workflow lifecycle events. For instance, when a workflow starts or updates, Kafka topics receive events for UI rendering, analytics, or distributed processing.
 
-```ts
-fetchTvShows: ServerActionResponseHandler = async (state) => {
-  return {
-    UpdateResponses: {
-      'tv_show_results': state.responses.show_name
-        ? await search(state.responses.show_name as string, 'multi')
-        : []
-    }
-  }
-}
-```
+External server actions use Kafka to request and await responses. When a `RunServerAction` is determined to be external, the system emits a request to the appropriate Kafka topic and waits on a oneshot channel for the response. If the action completes successfully, the workflow progresses. Otherwise, errors or timeouts are logged and handled gracefully.
 
-The result is merged into the workflow state under the key `tv_show_results`.
+## User Preferences and Persistence
 
----
+User responses and inputs can be persisted independently of workflow instances using the `UserWorkflowPreferences` structure. This allows workflows to pre-fill forms, customize behavior per user, or resume later with stored defaults.
 
-## Workflow Node Structure
+The `save_user_preferences` and `get_user_preferences` functions expose this persistence layer, abstracting the response map into long-lived storage keyed by `(user_id, workflow_id)`.
 
-The workflow consists of three primary nodes:
+## Serialization and Resource Rendering
 
-### 1. `input_node`: Search Prompt
+Workflows are exposed to the frontend or API clients via `WorkflowResource` objects. These are constructed using `state_to_resource()`, which bundles the current node’s metadata with live responses, available actions, and layout hints. This snapshot approach ensures clients can reliably render the latest user-facing state without querying node trees separately.
 
-- This is the entry point.
-- It prompts the user for a show name.
-- On submission, it triggers the `fetchTvShows` server action.
+## Error Handling and Timeouts
 
-```json
-{
-  id: "input_node",
-  inputs: [
-    { id: "show_name", input_type: { Text: { placeholder: "Enter a show name" } } }
-  ],
-  actions: [
-    { id: "fetch_action", action_type: "RunServerAction", target: "fetch_tv_shows" }
-  ],
-  children: ["results_node", "no_results_node"]
-}
-```
+The engine uses custom error types via `thiserror`, and each method returns a `Result<T, WorkflowError>`. Errors like `NodeNotFound`, `InvalidState`, or `ServerActionFailed` are surfaced in a controlled manner. For external actions, timeouts are handled using `tokio::time::timeout`, and fallback behaviors are logged and enforced to prevent dangling workflows.
 
----
+## Extending the Engine
 
-### 2. `results_node`: Show Selection
+The engine is designed to be extensible in several dimensions:
 
-- Displays if the `tv_show_results` list is not empty.
-- Shows the user a selectable list of matching shows.
+- Developers can define custom action types and handle them in `process_action`.
+- Internal server actions can encapsulate business logic and return dynamic next steps.
+- External server actions allow integration with external systems, AI models, or data services.
+- Workflows can be versioned, templated, and reused across different contexts.
 
-```json
-{
-  id: "results_node",
-  condition: { ResponseListNotEmpty: "tv_show_results" },
-  inputs: [
-    { id: "tv_show_results", input_type: { List: { item_key: "id", display_field: "title" } } }
-  ],
-  actions: [
-    { id: "select_show", action_type: "RunServerAction", target: "select_tv_show" },
-    { id: "cancel_action", action_type: "Cancel" }
-  ]
-}
-```
+With a modular Rust backend and clean async orchestration, Talky's workflow engine is a robust platform for building dynamic, stateful interactions that adapt to user input, external logic, and runtime conditions.
 
-Note: The `select_tv_show` action is scaffolded but not implemented in this version.
-
----
-
-### 3. `no_results_node`: No Matches Found
-
-- Triggered if `tv_show_results` is an empty list.
-- Provides user feedback and cancels the workflow.
-
-```json
-{
-  id: "no_results_node",
-  condition: { ResponseEquals: { field: "tv_show_results", value: [] } },
-  inputs: [
-    { id: "no_results_text", input_type: { Display: { content: "No shows matched your search." } } }
-  ],
-  actions: [
-    { id: "ok_action", action_type: "Cancel" }
-  ]
-}
-```
-
----
-
-## Node Transitions and Conditions
-
-Node transitions are based on evaluating conditions such as:
-
-- `Always`
-- `ResponseExists`
-- `ResponseListNotEmpty`
-- `ResponseEquals`
-
-During workflow execution, after a server action is processed, the engine calls `find_valid_child_node()` to determine the next node based on these conditions.
-
----
-
-## Server Action Results and State Propagation
-
-Server actions return `ServerActionResult` enums such as:
-
-- `UpdateResponses` – updates the internal workflow state
-- `NextPage` – forces navigation to a specific node
-- `CompleteWorkflow` – ends the workflow
-
-In this implementation, `fetchTvShows` returns an `UpdateResponses` payload that is used by the workflow engine to route users to either the `results_node` or `no_results_node`.
-
-The updated state is persisted in `WorkflowState.responses` and can be reused across future steps or follow-up actions.
-
----
-
-## Integration with `WorkflowManager`
-
-When the user runs `!follow`, we programmatically register the workflow and attach all server actions and metadata. Each user can have multiple workflow instances, and their responses are maintained independently. Server actions can also be external or local, depending on how they are registered.
-
-The manager ensures isolation of each user's interaction flow and provides introspection methods like `get_workflow_resource()` for retrieving in-progress state.
-
----
-
-## Summary
-
-The `MovieInfoCommandsService` is a comprehensive tool for movie and TV discovery within a conversational environment. It demonstrates how:
-
-- Rich chat commands can be modularized and registered dynamically
-- Structured workflows provide a better user experience for guided tasks
-- Server-side actions and state transitions can be composed declaratively using node-based conditions
-
-This architecture allows for flexible expansion, reusable workflows, and a user experience that can scale with the complexity of the interaction.
-
----
-
-## Next Steps
-
-Future enhancements may include:
-
-- Persisted watchlists per user
-- Notification triggers for new episodes
-- Episode-specific reminders
-- Stream availability integration
-
-By building this foundation with a modular and declarative design, we’re well-positioned to deliver even more powerful media-driven workflows in the future.
 
 Current bot:
-```
+```ts
 export class MovieInfoCommandsService extends CommandService {
   constructor(registry: CommandRegistry) {
     super(registry);
   }
 
+  storeResults: ServerActionResponseHandler = async (state) => {
+    console.log(state, state.responses.follows)
+    const follows = state.responses.tv_show_results.filter(result => state.responses.follows[result.id])
+    return {
+      CompleteWorkflow: { message: follows.length > 0 ? 'You are now following ' + follows.map(follow => follow.title).join(', ') + '.' : 'No changes made to your follows.' }
+    }
+  }
 
   fetchTvShows: ServerActionResponseHandler = async (state) => {
     return {
@@ -239,18 +122,24 @@ export class MovieInfoCommandsService extends CommandService {
 
   async onConnect(client: TalkyClient) {
     super.onConnect(client);
-    const serverActionId = await this.addServerAction(client, "fetch_tv_shows", this.fetchTvShows)
-    const workflowId = await client.workflows.registerWorkflow({
+    const fetchTvShowsId = await this.registerServerAction(client, "fetch_tv_shows", this.fetchTvShows)
+    const storeResultsId = await this.registerServerAction(client, "store_results", this.storeResults)
+    const workflowId = await this.registerWorkflow(client, {
       id: "tv_show_search",
       name: "TV Show Search",
       description: "Search for TV shows by name and choose one",
       initial_node_id: "input_node",
       server_actions: {
         fetch_tv_shows: {
-          id: serverActionId,
+          id: fetchTvShowsId,
           name: "Fetch TV Shows",
           description: "Fetch a list of TV shows based on input",
         },
+        store_results: {
+          id: storeResultsId,
+          name: "Store results",
+          description: "Stores the results of this workflow",
+        }
       },
       nodes: {
         input_node: {
@@ -283,7 +172,7 @@ export class MovieInfoCommandsService extends CommandService {
         },
         results_node: {
           id: "results_node",
-          title: "Results",
+          title: "Follow a TV show or movie",
           description: null,
           layout: null,
           parent_id: "input_node",
@@ -291,9 +180,9 @@ export class MovieInfoCommandsService extends CommandService {
           children: [],
           inputs: [
             {
-              id: "tv_show_results",
+              id: "follows",
               label: "TV Shows",
-              input_type: { List: { item_key: "id", display_field: "title" } },
+              input_type: { List: { from_responses_id: "tv_show_results", item_key: "id", display_field: "title" } },
               default_value: null,
               required: false,
               width: "full"
@@ -304,7 +193,7 @@ export class MovieInfoCommandsService extends CommandService {
               id: "select_show",
               label: "Select",
               action_type: "RunServerAction",
-              target: "select_tv_show",
+              target: "store_results",
               style: "primary"
             },
             {
@@ -318,7 +207,7 @@ export class MovieInfoCommandsService extends CommandService {
         },
         no_results_node: {
           id: "no_results_node",
-          title: "No Results Found",
+          title: "Follow a TV show or movie",
           description: null,
           layout: null,
           parent_id: "input_node",
@@ -354,8 +243,16 @@ export class MovieInfoCommandsService extends CommandService {
         handler: this.followHandler.bind(this, workflowId)
       },
     );
+    this.registerCommand(client, {
+      id: 'follow',
+      command: 'follow',
+      workflow_id: workflowId,
+      inputs: [],
+      name: 'Follow TV show',
+    })
   }
 }
+
 ```
 ---
 

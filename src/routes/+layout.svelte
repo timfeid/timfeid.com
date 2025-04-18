@@ -1,14 +1,23 @@
 <script lang="ts">
-	import Github from '$lib/components/app/project/github.svg?component';
 	import Linkedin from '$lib/components/app/linkedin.svg?component';
+	import Github from '$lib/components/app/project/github.svg?component';
 	import { Button } from '$lib/components/ui/button';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import hljs from 'highlight.js/lib/core';
+	import rust from 'highlight.js/lib/languages/rust';
+	import typescript from 'highlight.js/lib/languages/typescript';
 	import '../app.css';
-	import Home from '$lib/components/app/home.svg?component';
-	import { injectAnalytics } from '@vercel/analytics/sveltekit';
+	import 'highlight.js/styles/github-dark.css';
 	import { dev } from '$app/environment';
+	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 	import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
 	import { Portal } from 'bits-ui';
+	import bash from 'highlight.js/lib/languages/bash';
+
+	hljs.registerLanguage('ts', typescript);
+	hljs.registerLanguage('rust', rust);
+	// hljs.registerLanguage('svelte', svelte);
+	hljs.registerLanguage('bash', bash);
 
 	injectSpeedInsights();
 	injectAnalytics({ mode: dev ? 'development' : 'production' });
