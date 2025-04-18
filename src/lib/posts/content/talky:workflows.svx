@@ -1,0 +1,362 @@
+---
+description: Adding workflows
+date: 1744936027
+image: /posts/talky/006.png
+category: talky
+title: Talky - Adding a workflow integration
+tags:
+  - "Rust"
+  - "Svelte"
+  - "TypeScript"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Talky - Adding a workflow integration
+
+<sup>name, talky, still a work in progress</sup>
+
+
+![Screenshot](/posts/talky/005.gif)
+
+## Building the `MovieInfoCommandsService`: Structured Chat Commands and Interactive Workflows
+
+We’ve recently introduced a new feature: the `MovieInfoCommandsService`, designed to give users a seamless way to fetch movie and television information directly through chat. This feature not only exposes a series of powerful commands, but also introduces an interactive guided workflow for discovering and following shows.
+
+In this post, we’ll explore how the service is structured, how it integrates with our workflow engine, and how we designed the node-based navigation and server-side actions behind the scenes.
+
+---
+
+## Goals
+
+The goals for this feature were:
+
+- Provide a unified, chat-first interface for querying movies, series, episodes, and IMDb/TMDB data.
+- Introduce a conversational, UI-based workflow for guided content discovery.
+- Integrate seamlessly with the `WorkflowManager` for stateful interactions.
+
+---
+
+## Command Registration
+
+At the core of the `MovieInfoCommandsService` is a set of commands registered via the `getCommands()` method. Each command defines a handler function that queries external APIs and formats the response for chat delivery.
+
+### Examples:
+
+```ts
+{
+  name: 'movie',
+  description: 'Gets information about a movie by title or IMDb ID.',
+  usage: '!movie <title or imdb id>',
+  handler: this.movieHandler.bind(this),
+}
+```
+
+We expose the following commands:
+
+- `movie` – Look up movie info by title or IMDb ID
+- `series` – Look up TV series info
+- `find` – Search for any title (movie or series)
+- `episode` – Get episode-specific data
+- `imdb` – Query directly by IMDb ID
+- `tmdbmovie`, `tmdbseries` – Query by TMDB IDs
+- `parse` – Extract season/episode info from filenames
+- `follow` – Launches a guided search workflow
+
+Each command integrates with the `CommandRegistry`, enabling dynamic usage hints and standardized response handling.
+
+---
+
+## The `follow` Command Workflow
+
+The `follow` command opens an interactive, node-based workflow that walks the user through searching and selecting a TV show to follow. This is built using the `WorkflowManager` infrastructure and consists of server actions, conditions, and nodes.
+
+---
+
+## Server Action: `fetchTvShows`
+
+This is a server-side handler that receives user input (a show name) and returns a list of matching titles via a third-party media API:
+
+```ts
+fetchTvShows: ServerActionResponseHandler = async (state) => {
+  return {
+    UpdateResponses: {
+      'tv_show_results': state.responses.show_name
+        ? await search(state.responses.show_name as string, 'multi')
+        : []
+    }
+  }
+}
+```
+
+The result is merged into the workflow state under the key `tv_show_results`.
+
+---
+
+## Workflow Node Structure
+
+The workflow consists of three primary nodes:
+
+### 1. `input_node`: Search Prompt
+
+- This is the entry point.
+- It prompts the user for a show name.
+- On submission, it triggers the `fetchTvShows` server action.
+
+```json
+{
+  id: "input_node",
+  inputs: [
+    { id: "show_name", input_type: { Text: { placeholder: "Enter a show name" } } }
+  ],
+  actions: [
+    { id: "fetch_action", action_type: "RunServerAction", target: "fetch_tv_shows" }
+  ],
+  children: ["results_node", "no_results_node"]
+}
+```
+
+---
+
+### 2. `results_node`: Show Selection
+
+- Displays if the `tv_show_results` list is not empty.
+- Shows the user a selectable list of matching shows.
+
+```json
+{
+  id: "results_node",
+  condition: { ResponseListNotEmpty: "tv_show_results" },
+  inputs: [
+    { id: "tv_show_results", input_type: { List: { item_key: "id", display_field: "title" } } }
+  ],
+  actions: [
+    { id: "select_show", action_type: "RunServerAction", target: "select_tv_show" },
+    { id: "cancel_action", action_type: "Cancel" }
+  ]
+}
+```
+
+Note: The `select_tv_show` action is scaffolded but not implemented in this version.
+
+---
+
+### 3. `no_results_node`: No Matches Found
+
+- Triggered if `tv_show_results` is an empty list.
+- Provides user feedback and cancels the workflow.
+
+```json
+{
+  id: "no_results_node",
+  condition: { ResponseEquals: { field: "tv_show_results", value: [] } },
+  inputs: [
+    { id: "no_results_text", input_type: { Display: { content: "No shows matched your search." } } }
+  ],
+  actions: [
+    { id: "ok_action", action_type: "Cancel" }
+  ]
+}
+```
+
+---
+
+## Node Transitions and Conditions
+
+Node transitions are based on evaluating conditions such as:
+
+- `Always`
+- `ResponseExists`
+- `ResponseListNotEmpty`
+- `ResponseEquals`
+
+During workflow execution, after a server action is processed, the engine calls `find_valid_child_node()` to determine the next node based on these conditions.
+
+---
+
+## Server Action Results and State Propagation
+
+Server actions return `ServerActionResult` enums such as:
+
+- `UpdateResponses` – updates the internal workflow state
+- `NextPage` – forces navigation to a specific node
+- `CompleteWorkflow` – ends the workflow
+
+In this implementation, `fetchTvShows` returns an `UpdateResponses` payload that is used by the workflow engine to route users to either the `results_node` or `no_results_node`.
+
+The updated state is persisted in `WorkflowState.responses` and can be reused across future steps or follow-up actions.
+
+---
+
+## Integration with `WorkflowManager`
+
+When the user runs `!follow`, we programmatically register the workflow and attach all server actions and metadata. Each user can have multiple workflow instances, and their responses are maintained independently. Server actions can also be external or local, depending on how they are registered.
+
+The manager ensures isolation of each user's interaction flow and provides introspection methods like `get_workflow_resource()` for retrieving in-progress state.
+
+---
+
+## Summary
+
+The `MovieInfoCommandsService` is a comprehensive tool for movie and TV discovery within a conversational environment. It demonstrates how:
+
+- Rich chat commands can be modularized and registered dynamically
+- Structured workflows provide a better user experience for guided tasks
+- Server-side actions and state transitions can be composed declaratively using node-based conditions
+
+This architecture allows for flexible expansion, reusable workflows, and a user experience that can scale with the complexity of the interaction.
+
+---
+
+## Next Steps
+
+Future enhancements may include:
+
+- Persisted watchlists per user
+- Notification triggers for new episodes
+- Episode-specific reminders
+- Stream availability integration
+
+By building this foundation with a modular and declarative design, we’re well-positioned to deliver even more powerful media-driven workflows in the future.
+
+Current bot:
+```
+export class MovieInfoCommandsService extends CommandService {
+  constructor(registry: CommandRegistry) {
+    super(registry);
+  }
+
+
+  fetchTvShows: ServerActionResponseHandler = async (state) => {
+    return {
+      UpdateResponses: {
+        'tv_show_results': state.responses.show_name ? await search(state.responses.show_name as string, 'multi') : []
+      }
+    }
+  }
+
+  async onConnect(client: TalkyClient) {
+    super.onConnect(client);
+    const serverActionId = await this.addServerAction(client, "fetch_tv_shows", this.fetchTvShows)
+    const workflowId = await client.workflows.registerWorkflow({
+      id: "tv_show_search",
+      name: "TV Show Search",
+      description: "Search for TV shows by name and choose one",
+      initial_node_id: "input_node",
+      server_actions: {
+        fetch_tv_shows: {
+          id: serverActionId,
+          name: "Fetch TV Shows",
+          description: "Fetch a list of TV shows based on input",
+        },
+      },
+      nodes: {
+        input_node: {
+          id: "input_node",
+          title: "Follow a TV show or movie",
+          description: null,
+          layout: null,
+          condition: "Always",
+          parent_id: null,
+          children: ["results_node", "no_results_node"],
+          inputs: [
+            {
+              id: "show_name",
+              label: "TV Show Name",
+              input_type: { Text: { placeholder: "Enter a show name" } },
+              default_value: null,
+              required: true,
+              width: "full"
+            }
+          ],
+          actions: [
+            {
+              id: "fetch_action",
+              label: "Search",
+              action_type: "RunServerAction",
+              target: "fetch_tv_shows",
+              style: null
+            }
+          ]
+        },
+        results_node: {
+          id: "results_node",
+          title: "Results",
+          description: null,
+          layout: null,
+          parent_id: "input_node",
+          condition: { ResponseListNotEmpty: "tv_show_results" },
+          children: [],
+          inputs: [
+            {
+              id: "tv_show_results",
+              label: "TV Shows",
+              input_type: { List: { item_key: "id", display_field: "title" } },
+              default_value: null,
+              required: false,
+              width: "full"
+            }
+          ],
+          actions: [
+            {
+              id: "select_show",
+              label: "Select",
+              action_type: "RunServerAction",
+              target: "select_tv_show",
+              style: "primary"
+            },
+            {
+              id: "cancel_action",
+              label: "Cancel",
+              action_type: "Cancel",
+              target: null,
+              style: "secondary"
+            }
+          ]
+        },
+        no_results_node: {
+          id: "no_results_node",
+          title: "No Results Found",
+          description: null,
+          layout: null,
+          parent_id: "input_node",
+          condition: { ResponseEquals: { field: "tv_show_results", value: [] } },
+          children: [],
+          inputs: [
+            {
+              id: "no_results_text",
+              label: "Nothing Found",
+              input_type: { Display: { content: "No shows matched your search." } },
+              default_value: null,
+              required: false,
+              width: "full"
+            }
+          ],
+          actions: [
+            {
+              id: "ok_action",
+              label: "OK",
+              action_type: "Cancel",
+              target: null,
+              style: "primary"
+            }
+          ]
+        }
+      }
+    })
+    this.registry.registerCommand(
+      {
+        name: 'follow',
+        description: 'Follow a TV show or movie',
+        usage: `${this.registry.trigger}follow`,
+        handler: this.followHandler.bind(this, workflowId)
+      },
+    );
+  }
+}
+```
+---
+
+<GithubRepo repo="timfeid/home" link="https://github.com/timfeid/home" />
