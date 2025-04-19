@@ -287,5 +287,3 @@ User accounts.
 - Foreign keys with `ON UPDATE CASCADE`, `ON DELETE RESTRICT`
 
 ---
-
-<GithubRepo repo="timfeid/home" link="https://github.com/timfeid/home" />

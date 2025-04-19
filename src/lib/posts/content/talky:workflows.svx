@@ -255,5 +255,3 @@ export class MovieInfoCommandsService extends CommandService {
 
 ```
 ---
-
-<GithubRepo repo="timfeid/home" link="https://github.com/timfeid/home" />

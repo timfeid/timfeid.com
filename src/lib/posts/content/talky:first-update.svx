@@ -19,5 +19,3 @@ tags:
 ![Screenshot](/posts/talky/001.png)
 
 ... ai failed to write something cool so check back
-
-<GithubRepo repo="timfeid/home" link="https://github.com/timfeid/home" />

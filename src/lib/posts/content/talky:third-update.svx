@@ -249,5 +249,3 @@ There are several things I'd like to add to the bot framework in the future:
 Adding bot support to Talky has been a fun project that adds a lot of utility to the chat application. The service-based architecture makes it easy to add new features as I think of them, and the command system provides a familiar interface for users.
 
 I'm excited to continue expanding the bot's capabilities and integrating with more external APIs. If you have ideas for commands or services that would be useful, let me know in the comments!
-
-<GithubRepo repo="timfeid/home" link="https://github.com/timfeid/home" />
