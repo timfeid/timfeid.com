@@ -1,8 +1,8 @@
 ---
 description: Inside Talky's Workflow Engine - A Deep Dive into Stateful Command Workflows
 date: 1744936027
-image: /posts/talky/006.png
-category: talky
+image: /posts/tawks/006.png
+category: tawks
 title: Talky - Adding a workflow integration for bots
 tags:
   - "Rust"

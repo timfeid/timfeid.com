@@ -1,8 +1,8 @@
 ---
 description: Adding bots/api integration
 date: 1744762427
-image: /posts/talky/003.png
-category: talky
+image: /posts/tawks/003.png
+category: tawks
 title: Talky - Adding bots/api integration
 tags:
   - "Rust"
