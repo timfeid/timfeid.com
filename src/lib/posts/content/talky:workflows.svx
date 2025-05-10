@@ -18,7 +18,7 @@ tags:
 
 <sup>name, talky, still a work in progress</sup>
 
-![Screenshot](/posts/talky/005.webp)
+![Screenshot](/posts/tawks/005.webp)
 
 The Talky platform supports a sophisticated command workflow engine that enables dynamic, stateful, and user-driven interactions. This system powers bots and assistants that operate through multi-step processes, optionally involving internal logic and external integrations. In this post, we'll explore the internals of this engine, which is built in Rust and orchestrated using an asynchronous, lock-safe architecture.
 

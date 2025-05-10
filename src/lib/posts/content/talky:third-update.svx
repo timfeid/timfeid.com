@@ -103,7 +103,7 @@ One of the first services I implemented was the `MovieInfoCommandsService`. This
 
 When a user types something like `!find The Matrix`, the bot queries the movie API and returns information about the movie including title, release date, rating, and a brief description.
 
-![Screenshot](/posts/talky/003.png)
+![Screenshot](/posts/tawks/003.png)
 
 ### NHL Standings
 
@@ -121,7 +121,7 @@ I'm a big hockey fan, so I also implemented a service for NHL standings. This se
 ```
 
 When a user types `!nhlstandings`, the bot fetches the current standings.
-![Screenshot](/posts/talky/004.png)
+![Screenshot](/posts/tawks/004.png)
 
 ### Quantum Communications (Just for Fun)
 
