@@ -41,7 +41,7 @@ After dozens of ideas on a shared Google Doc and a few rounds of colleague polls
 
 ## Jersey Roots and the “W” Twist
 
-I’m from New Jersey, where people often slip in a playful “W” sound—talks becomes tawks, water becomes wawter. That regional quirk stuck with me. When “Tawks” surfaced as a candidate, it felt like the perfect nod to home. It’s memorable, sounds just right, and captures that Jersey-inflected charm I’ve always loved.
+I’m from New Jersey, where people often slip in a playful “W” sound; talks becomes tawks, water becomes wawter. That regional quirk stuck with me. When “Tawks” surfaced as a candidate, it felt like the perfect nod to home. It’s memorable, sounds just right, and captures that Jersey-inflected charm I’ve always loved.
 
 ## The Aha Moment: “Tawks”
 
@@ -52,35 +52,5 @@ I’m from New Jersey, where people often slip in a playful “W” sound—talk
 * Friendly tone: short, snappy, unpretentious
 * Design flexibility: uppercase for bold logos, lowercase for casual in-app chat
 
-Once I secured the domain and filed the trademark, I sketched a rounded, warm wordmark that felt inviting.
-
-## Privacy by Design: Anonymous Sign-Up and Login
-
-From day one, my goal was to build a privacy-first chat. Conversations can be sensitive in support groups, grassroots communities, or friendly banter, so I wanted people chatting without giving up personal data.
-
-**Key Goals**
-
-* No personally identifiable information collected (no email, phone number, or real name required)
-* Frictionless access (start chatting in under ten seconds)
-* Session persistence (remain signed in across restarts, privately)
-* Optional upgrade (claim a permanent username later, if desired)
-
-**How It Works**
-
-1. One-tap “Join Anonymously”: present a single button, no forms or fields
-2. Generate a random identity: secure UUIDv4 and a fun display name such as “OceanFox”
-3. Issue a JWT: backend built in Rust/Actix-Web signs a token with anonymous ID and name, valid for thirty days; token lives in localStorage or secure mobile store
-4. Restore on relaunch: app checks for a valid token at startup and logs you in instantly
-5. Optional account claim: add email or social login at any time and migrate chat history seamlessly
-
-All communication happens over TLS, and tokens include issuance and expiration claims. Middleware rejects any expired or modified tokens so users can dive into “Tawks” without worrying about privacy.
-
-## Looking Ahead
-
-Now that **Tawks** is live, communities are forming in seconds with no signup hurdles and no privacy concerns. Next on the roadmap:
-
-* End-to-end encrypted rooms
-* Anonymous file sharing with expiring links
-* Custom identity packs beyond animal themes
 
 The name reflects the mission: make conversations effortless on your own terms and with a little Jersey W-flavor baked in.
