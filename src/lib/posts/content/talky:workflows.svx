@@ -97,6 +97,8 @@ The engine is designed to be extensible in several dimensions:
 With a modular Rust backend and clean async orchestration, Talky's workflow engine is a robust platform for building dynamic, stateful interactions that adapt to user input, external logic, and runtime conditions.
 
 
+<img src="/posts/tawks/007-1.png" alt="Workflow" />
+
 Current bot:
 ```ts
 export class MovieInfoCommandsService extends CommandService {
@@ -253,5 +255,7 @@ export class MovieInfoCommandsService extends CommandService {
   }
 }
 
+
+
 ```
----
+
