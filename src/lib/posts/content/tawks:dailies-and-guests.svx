@@ -1,5 +1,5 @@
 ---
-description: A word game that lasted twelve hours, a football hub, and no account needed
+description: Ranking a word game with embeddings, then deleting it, and turning a guest into an account without moving any data
 date: 1789585163
 image: /posts/tawks/010.webp
 category: tawks
@@ -7,7 +7,7 @@ title: Tawks - Daily games, football and guests
 tags:
   - "Rust"
   - "Svelte"
-  - "Games"
+  - "Postgres"
 ---
 
 <script lang="ts">
@@ -18,34 +18,146 @@ tags:
 
 ![Football picks as a guest](/posts/tawks/010.webp)
 
-## The word game
+A few days of bots serving pages in hubs. The word game and guests are the two interesting ones.
 
-Sunday night I added a daily secret word game, like Contexto. You guess a word and it ranks how close you are using embeddings. 17,329 words in the vocabulary, 3,526 possible secrets.
+## Ranking words with embeddings
 
-Monday morning I swapped the hints for clue words that get warmer as you go, cut 1,638 of the secrets and tuned the scoring around ten guesses.
+Sunday night I added a daily secret word game, like Contexto. You guess a word, it tells you how close you are as a rank. Rank 1 is the answer.
 
-About half an hour later I replaced the whole game with a Connections style puzzle. Four groups of four, from a bank of 30 I wrote by hand.
+The vocabulary is 17,329 words in a table with the vectors right on the row.
+
+```sql
+CREATE TABLE vocab (
+    word TEXT PRIMARY KEY,
+    freq_rank INT NOT NULL,
+    embedding REAL[] NOT NULL
+);
+```
+
+The bot embeds whatever's missing, 64 at a time, against an OpenAI compatible endpoint, then loads all of it into memory. Vectors get normalized when they come back, so similarity is just a dot product.
+
+Making a puzzle is brute force. Pick a word, dot it against the entire vocabulary, sort.
+
+```rust
+let mut sims: Vec<(usize, f32)> = vocab.vectors.iter().enumerate()
+    .map(|(i, v)| (i, dot(secret_vec, v)))
+    .collect();
+sims.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+let sim_at_100 = sims.get(100).map(|s| s.1).unwrap_or(0.0);
+if sim_at_100 < MIN_SIM_AT_100 {
+    warn!(word = %candidate, sim_at_100, "secret rejected: thin neighborhood");
+    continue;
+}
+```
+
+That check is the only clever bit. Some words have nothing close to them, and for those the ranks are noise. Rank 40 and rank 400 feel the same, and the game stops giving feedback. So if the 100th closest word is under 0.55 similarity, the secret gets thrown out and it tries another, up to 25 tries. The whole ranking gets written to `puzzle_ranks`, 17,329 rows a day, so a restart doesn't need to redo it.
+
+No index, no vector database. It's one sort a day, it doesn't need one.
+
+A guess is three lookups, cheapest first.
+
+1. In the day's rank map? Done.
+2. A plural that folds onto a base form that's in the map? Use that.
+3. Not in the vocabulary at all. Embed it live, then count how many vocabulary words are closer to the secret.
+
+```rust
+let vec = self.embedder.embed_one(guess).await?;
+let sim = dot(&puzzle.secret_vec, &vec);
+let closer = vocab.vectors.iter()
+    .filter(|v| dot(&puzzle.secret_vec, v) > sim)
+    .count();
+let rank = closer as i32 + 1;
+```
+
+That's a linear scan and a network call, cached by day and guess. So words outside the list still get a real rank. The downside is your guess needs an embedding server to be up, and that retries with backoff up to 5 times because that server stalls under load.
+
+## Then I replaced it
+
+Monday morning hints got replaced by clue words. Hints unlocked after 10 guesses, and scoring was `110 - 2 * guesses - 10 * hints`. The new version gives you 2 clues at the start and one more every 2 guesses, up to 7, and scores `105 - 8 * guesses`, so ten guesses is 25 points.
+
+The clues are the secret's closest neighbors, farthest first so they warm up. They have to not give away the spelling, so anything sharing a 4 letter stem or containing the word gets skipped.
+
+```rust
+let related = |w: &str| {
+    w.starts_with(&secret[..stem_len])
+        || secret.starts_with(&w[..w.len().min(4)])
+        || w.contains(secret)
+        || secret.contains(w)
+};
+```
+
+Secrets went from 3,526 to 1,869, keeping the more common ones.
+
+About half an hour after that commit I replaced the whole game with a Connections style puzzle. Sixteen words, four groups, a bank of 30 I wrote by hand, compiled in with `include_str!`. So the embedding game lasted about twelve hours.
 
 ```json
 {"level": 4, "name": "Sound like numbers", "words": ["WON", "ATE", "FOR", "TOO"]}
 ```
 
-So the first one lasted about twelve hours. That afternoon the bank got easier and you get one hint after two mistakes.
+The new one has no vectors, no ranks table and no embedding server. Loading checks every puzzle is four groups of four with no repeated word, and the bot won't start otherwise. A guess is one of four outcomes, `Found`, `OneAway`, `Miss` or `Repeat`. Four mistakes and each one costs 15 points. It renamed `libs/contexto` to `libs/connections` and kept the dates and notify code.
 
-## Football
+That afternoon the bank got easier and you get one hint after two mistakes.
 
-The Football hub has weekly pick'em and a season long survivor pool. It runs off ESPN's public scoreboard. Weeks go Wednesday to Wednesday, picks lock at kickoff and you get up to three locks a week. Later that day I added a fantasy lineup, QB, RB, WR and a flex, half PPR off the box scores.
+## Football, briefly
 
-ESPN stopped accepting date ranges on the scoreboard, so it fetches one day at a time now.
+The Football hub is an NFL pick'em, a survivor pool and a fantasy lineup. Two bugs are worth writing down.
 
-Button inputs stay in the workflow's responses. Tapping a lineup slot reused the game you picked for the last slot and jumped straight to its players.
+ESPN stopped accepting date ranges on the scoreboard, so `dates=start-end` became one request per day in the range. A scoreboard failure also doesn't block rosters or grading now.
 
-It was all one channel at first. Now Picks, Lineup, Survivor, Leaderboard and Me are separate channels, each its own workflow, all one bot.
+The other one is a workflow thing that will get you if you build on this. Button inputs persist in the instance's responses. You tap a lineup slot, pick a game, pick a player. Tap the next slot and `game_id` is still there from last time, the node conditions pass, and it jumps straight to that game's players. The fix is that the slot button clears it.
+
+```rust
+inputs(&[("slot", "{s.slot}"), ("game_id", "")]),
+```
+
+Responses are the state machine. There's no per node scope. You clear what you don't want anymore.
 
 ## Guests
 
-You don't need an account anymore. Every visitor gets a guest session. You can look around public hubs and play the games, and there's a sign in prompt where the chat box would be. The API refuses writes from a guest. If you sign up the guest gets converted, so your game history stays yours.
+You don't need an account anymore. Every visitor gets a guest session, and can look around public hubs and play the games.
 
-Guests were all called "Guest" at first. Now you get something like GoldenSparrow-918.
+A separate guest identity would mean a merge on signup, and every table with a user id on it would need to move. So a guest is just a row in `users` with `is_anonymous = true`, and signing up flips the flag.
 
-The games were skipping a guest's saved state too, so a group you already solved stayed on the board and your picks looked blank. Also a dead guest token used to fail every call. Now it gets replaced.
+```sql
+UPDATE users SET username = $2, display_name = $3, is_anonymous = false, updated_at = NOW()
+WHERE id = $1 AND is_anonymous = true
+```
+
+Picks, streaks and scores already point at that id. Nothing moves. There is no merge code.
+
+The flow:
+
+1. No token, so the client asks the API to mint a guest and stores the token.
+2. You hit sign up. `register_begin` sees your claims belong to an anonymous user and passes `guest_user_id` along.
+3. Instead of creating an attempt row, it takes the guest's user with the new username on top, and generates the passkey challenge for that uuid. The challenge and `guest_user_id` wait in memory until the browser comes back.
+4. `register_complete` verifies the passkey, then converts the guest instead of creating a user.
+
+```rust
+let user = match &req.guest_user_id {
+    Some(guest_id) => {
+        let guest = self.user_svc.find_by_id(guest_id).await?;
+        UserResource { username: req.username.clone(), ..guest }
+    }
+    None => UserResource::from(self.create_attempt(/* ... */).await?),
+};
+```
+
+Reads were already fine, so the guard only had to go on writes. `required_user` became `required_account` at about 50 call sites, and it checks `is_anonymous` against the database.
+
+## What I got wrong first
+
+Anonymous users already existed, one per fingerprint, the hash of address and user agent, with an upsert.
+
+```sql
+ON CONFLICT (anonymous_fingerprint) WHERE is_anonymous = true ...
+DO UPDATE SET updated_at = NOW()
+```
+
+That merges everyone behind the same address on the same browser into one person, and once guests can play games that means you're sharing a board with your roommate. Now each browser gets its own guest. The fingerprint only caps how many one client can mint a day, the unique index became a plain one, and past the cap you get the newest one back.
+
+Next, the games. Connections and Gridiron had code paths that skipped stored state for anonymous users, since guests couldn't play before. So a group you already solved stayed on the board and your picks looked blank. They load it now.
+
+Then tokens. An account has a 1 hour access token and a refresh token. Guests just hold one token for the life of the browser session, so at 1 hour they'd die. Guest tokens are 90 days now. That creates the next problem, because a stored token can outlive its user, and a dead one fails every call forever. So the client checks it with `auth_whoami` before trusting it, and if that fails it drops it and mints a new guest.
+
+Names were last. Everyone was "Guest" for a night. Now it's an adjective and a noun and a number under 1000, like GoldenSparrow-918.

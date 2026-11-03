@@ -1,5 +1,5 @@
 ---
-description: Games get their own service, and a bot joins the lobby to run trivia out loud
+description: One actor per lobby, per player views, and a voice pipeline from LiveKit frames to Whisper and back
 date: 1769660656
 image: /posts/tawks/009.webp
 category: tawks
@@ -18,51 +18,216 @@ tags:
 
 ![Midnight](/posts/tawks/009.webp)
 
-Games have their own service now. It signs in as a bot, same as any other bot. Trivia showed up in the same move.
+Games have their own service now. It connects as a bot, same as any other bot. Everything it does goes through server actions and the same API. Two things in here were worth writing down: how a game runs, and how a bot hears you and answers.
 
 ## One actor per lobby
 
-[Midnight](/posts/tawks:midnight) had an `Arc<Mutex<GameState>>` in every role and another lock around the runner. That's gone. There's a trait now.
+[Midnight](/posts/tawks:midnight) had an `Arc<Mutex<GameState>>` in every closure and a lock around the runner. Now there's a framework, and Midnight, Trivia and the card game all sit on it. The commit is 78 files, 7200 lines in and 5004 out, and the message is "feat: it works".
 
 ```rust
 pub trait GameLogic: Sized + Send + Sync + 'static {
+    type Action: serde::de::DeserializeOwned + Send;
+    type View: serde::Serialize + Send + Clone;
+    type Effect: std::fmt::Debug + Send + Sync;
+    // ...
     fn update(&mut self, player_id: &str, action: Self::Action) -> Result<Vec<Self::Effect>>;
     fn view_for(&self, player_id: &str) -> Self::View;
-    fn tick(&mut self) -> Vec<Self::Action> {
-        vec![]
-    }
-    // ...
+    fn tick(&mut self) -> Vec<Self::Action> { vec![] }
+    fn get_player_ids(&self) -> Vec<String>;
 }
 ```
 
-Each lobby gets one task and a channel. Actions go in one at a time, so the game just gets `&mut self`. It ticks once a second. `view_for` takes the player, which is how hidden stuff stays hidden.
+A game is a state machine now. `update` is sync, takes `&mut self`, and returns what should happen instead of doing it. No async, no locks, no network. Midnight has zero `Arc<Mutex<GameState>>` left.
 
-Midnight, trivia and the card game all run on it. The commit was 78 files, 7200 lines in and 5004 out. The message was "feat: it works".
+Each lobby gets one task that owns the game and reads from a channel with room for 128 messages.
+
+```rust
+let mut game = G::new(args);
+let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+
+loop {
+    tokio::select! {
+        _ = interval.tick() => {
+            let actions = game.tick();
+            if actions.is_empty() { continue; }
+            for action in actions {
+                let _ = process_and_fanout::<G>(/* ... */ action).await;
+            }
+        }
+        msg = rx.recv() => { /* Action or WithGame */ }
+    }
+}
+```
+
+A server action comes in from Tawks, a mapper turns it into a `G::Action`, it goes down the channel with a oneshot for the reply, and the handler awaits that. Everything in a lobby happens in one order because there's one consumer.
+
+Timers changed because of this too. Midnight used to `sleep` in a spawned task. Now it stores `timer_expires_at`, and `tick` checks the clock once a second and returns `TickStageExpired`. So a timer can run up to a second late. I'll take that for not having a task per timer.
+
+## Effects leave after update
+
+`update` returns effects, then `process_and_fanout` does the actual work.
+
+1. Run `game.update`.
+2. Sort the effects. Per user ones go in one bucket, workflow injections in another by instance. `Speak` and `RunServerAction` go out right there.
+3. For every player, call `view_for` and send it.
+4. Then that player's injected workflows, with the fresh view attached.
+5. Then cleanup effects.
+
+Step 3 is the whole idea.
+
+```rust
+let view = game.view_for(&user_id);
+
+bot.sdk().web_client.mutate::<_, ()>(
+    "workflow_reconcile_instance",
+    &json!({
+        "instance_id": instance_id,
+        "inputs": { "game": view, "lobby_id": lobby_id },
+        "context": {},
+        "reconcile_node": true,
+        "target_user_id": user_id
+    }),
+).await.ok();
+```
+
+Every player gets their own view written into their own workflow instance, and `reconcile_node` makes the engine pick the node again from those responses. The page is whatever the conditions say about `game`. The game never says "show this player the voting screen". It changes `stage` and the workflow follows.
+
+Hidden information lives in `view_for` and nowhere else, which is the part I like the most.
+
+```rust
+let self_card_filter = if self.stage == GameStage::Results {
+    None
+} else {
+    Some(RoleTransactionVisibilty::Shown)
+};
+// ...
+let show_role = (p.id == viewer_id && is_live) || self.stage == GameStage::Results;
+```
+
+During the game you get your own role and only the shown lookup. At results everyone gets the truth. There's no way to leak another player's role by forgetting a check somewhere in the UI, because the role isn't in your JSON.
+
+Now the tradeoffs, because there are plenty.
+
+**Fanout runs inside the actor.** Those are HTTP calls, one player at a time, awaited. That's what keeps views in order. It also means one slow API call stalls the whole lobby, and a table of 8 is 8 round trips per action. Every action sends everyone a full view whether it changed for them or not.
+
+**Effects can half apply.** `update` has already changed the state when effects run. `Speak` uses `?`, so if TTS is down the action returns an error to the player, and the state stays changed, and nobody gets the new view until the next thing happens.
+
+**`WithGame` skips all of it.** It's an escape hatch that runs a closure against `&mut game` for workflows that need to return something direct like `CompleteWorkflow`. No fanout. If you change something other players can see in there, they don't find out.
+
+**Starting a lobby can race.** `get_or_start_lobby` checks the map, then inserts. Two first callers can both spawn an actor, and whichever loses the map gets thrown away along with whatever it just did. There's a comment in there admitting it. Also nothing ever removes from that map, so lobby actors don't stop.
 
 ## Voice
 
-In December I vendored the `sfu` crate into the repo. By the end of January that's gone and voice is on LiveKit. Soundhouse can join a room like anyone else now, so I had it join.
+In December I vendored the `sfu` crate into the repo. By the end of January that's gone and voice is on LiveKit, web client and soundhouse both. What matters here is that soundhouse can now join a room as a participant using the LiveKit Rust SDK. It gets everyone's audio tracks like anyone else would, and publishes its own.
 
-## A bot that listens
+## From a track to text
 
-It subscribes to everyone in the lobby. Audio gets resampled to 16kHz and it watches the volume. 700ms of quiet ends what you were saying, then that goes to a small Python server running faster-whisper.
+One loop per participant. LiveKit hands over frames as 48kHz mono i16.
 
-Whisper hears things when nobody is talking, so there's a list.
+```rust
+let mut stream = NativeAudioStream::new(track.rtc_track(), 48_000, 1);
+
+let chunk_size_in = 480; // 10ms at 48k
+let mut resampler =
+    SincFixedIn::<f32>::new(16_000_f64 / 48_000_f64, 2.0, params, chunk_size_in, 1).unwrap();
+```
+
+Frames don't arrive in 480 sample pieces, so they go into a `Vec<f32>` first and get drained out in exact chunks, because `SincFixedIn` wants a fixed input size. Each 10ms comes out as 16kHz, which is what Whisper wants.
+
+VAD is just RMS on each of those chunks. There's no model.
+
+```rust
+let rms_threshold: f32 = 0.01;
+let silence_timeout = Duration::from_millis(700);
+let min_utt = Duration::from_millis(400);
+let max_utt = Duration::from_secs(12);
+```
+
+Above the threshold and not in speech, start an utterance. While in speech, keep appending, including the quiet parts so the trailing silence stays in. End it when it's been quiet for 700ms, or force a flush at 12 seconds so someone who never stops talking still gets heard.
+
+It's dumb but it's cheap, and it's running once per person per lobby. There are holes in it:
+
+- `min_utt` does nothing. The check is `now - utterance_start >= 400ms`, but we only get there after 700ms of silence, so it's always true. A cough goes to Whisper.
+- There's no pre-roll. The utterance starts on the first chunk over the threshold, so the very start of a quiet word is gone.
+- A fixed 0.01 doesn't know how loud your mic is.
+
+The cough is covered on the other end, because the Python side runs `faster-whisper` with its own `vad_filter=True`. So there are two VADs. The cheap one decides what's worth sending and the good one decides what's speech.
+
+```python
+segments, info = stt_model.transcribe(
+    audio_float32,
+    beam_size=5,
+    vad_filter=True,
+    vad_parameters=dict(min_silence_duration_ms=500),
+    initial_prompt="Listen Talks, Jeopardy, Answer, Question"
+)
+```
+
+`distil-small.en` on GPU, `base.en` on CPU if that fails. The `initial_prompt` nudges it toward the words I care about. It says "Listen Talks", and that's also what the wake word check looks for. Not "tawks". The body is raw little endian i16 with no WAV header, which is fine because I own both ends.
+
+Whisper also hears things that were never said.
 
 ```python
 hallucinations = ["Thank you.", "Thanks for watching.", "You", "Bye."]
+is_garbage = raw_text in hallucinations or len(raw_text) < 2
 ```
 
-Those get thrown out before it looks for a command. To get its attention you say "listen" or "talks". It can start a game, tell a joke or tell you the time. Anything else goes to chat.
+Those skip intent matching. Exact string match, so it's a band-aid.
 
-## Trivia out loud
+## Who answered first
 
-Everything you say gets checked against the current answer first.
+Each finished utterance gets a `tokio::spawn`, carrying the speaker's identity. The trivia check is the first thing it does.
 
 ```rust
 if spoken.contains(&target.text) || jaro_winkler(&spoken, &target.text) > 0.85 {
+    let score = state.scores.entry(user_id.clone()).or_insert(0);
+    *score += 100;
+    // ...
+    state.current_answer = None;
 ```
 
-Transcription is never exact so it has to be a little loose. Get it right and the bot says "Correct!" with your score, gives you 100 points, waits two seconds and reads the next question. The points go to whoever was talking, so each audio loop carries who it belongs to. That one has a FIX comment on it.
+`contains` is for "uh is it paris". `jaro_winkler` over the whole utterance is for when the transcription is close on a short answer. Clearing `current_answer` under the mutex is what makes it single winner.
 
-The voice is NeuTTS. It streams 24kHz and soundhouse wants 48kHz, so every sample just gets repeated twice. The comment says to replace it with a proper resampler later.
+But think about what that means. Utterances run concurrently, so the winner is whoever's HTTP call to Whisper finishes first, not whoever spoke first. Also your utterance doesn't even get sent until you've been quiet for 700ms. So it favors short answers and people who stop talking. Honestly for a trivia game in a voice lobby that's fine.
+
+Only after that does it look at the wake word. "listen" or "talks" with "game" or "start" starts a game, "joke" and "time" do what you'd think, anything else goes to chat.
+
+## From text back to a track
+
+Going out is simpler, but the clock matters. `/tts` streams from NeuTTS at 24kHz float.
+
+```python
+# 24k -> 48k (2x) upsample
+y = np.repeat(x, 2)
+audio_int16 = np.clip(y * 32767.0, -32768, 32767).astype(np.int16)
+yield audio_int16.tobytes()
+```
+
+Repeating samples is not resampling. It adds imaging and the docstring says to replace it. It's fast and it streams, so it's still there.
+
+Soundhouse reads that HTTP stream, and network chunks don't land on sample boundaries, so it keeps the odd byte around.
+
+```rust
+buffer.extend_from_slice(&chunk);
+// keep i16 alignment
+let even_len = buffer.len() & !1;
+let data = buffer.split_to(even_len);
+```
+
+Samples go into an unbounded queue. A separate pump owns the LiveKit audio source and runs on a 20ms clock, always.
+
+```rust
+const SAMPLES_PER_CH: u32 = 960; // 20ms @ 48kHz
+let mut pacer = tokio::time::interval(Duration::from_millis(20));
+pacer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+// each tick: drain the queue into pending, then
+let frame_samples: Vec<i16> = if pending.len() >= SAMPLES_PER_CH as usize {
+    pending.drain(0..SAMPLES_PER_CH as usize).collect()
+} else {
+    silence.clone()
+};
+```
+
+Generation is bursty and the room wants a frame every 20ms exactly, so the pump is the thing separating those two clocks. When there's nothing to say it sends silence, it doesn't stop.
+
+Two problems with that. `speak` returns when the text is queued, not when it's been heard. The "Correct!" flow waits a fixed 2 seconds and then reads the next question, so the timing depends on how long "Correct" takes to say. And two `speak` calls at once feed the same queue, so their chunks would interleave. Nothing stops that.

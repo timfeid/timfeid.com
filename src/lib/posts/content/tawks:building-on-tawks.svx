@@ -1,13 +1,13 @@
 ---
-description: Make your own bot, ship your own game into a lobby, and test it without touching Tawks
-date: 1792851608
+description: How an action reaches a bot, what the activity iframe is allowed to do, and what breaks when you run two of everything
+date: 1792864799
 image: /posts/tawks/011.webp
 category: tawks
 title: Tawks - Other people can build on it now
 tags:
   - "Rust"
   - "TypeScript"
-  - "Svelte"
+  - "Postgres"
 ---
 
 <script lang="ts">
@@ -18,40 +18,214 @@ tags:
 
 ![The workflow playground](/posts/tawks/011.webp)
 
-You can make your own bot now. A hub gives your role the Create Bots permission, then it's Settings > Bots. The token shows once and starts with `tbot_` so secret scanners can spot it. There's a [Rust and a JavaScript SDK](https://github.com/timfeid/tawks-dev) and [docs](https://docs.tawks.app).
+You can make your own bot now. There's a Rust and a JavaScript SDK, [docs](https://docs.tawks.app), and a [repo](https://github.com/timfeid/tawks-dev) with Midnight, Trivia, Tracklines and Cards in it. Opening it up meant writing down how this all works, and running a second copy of everything broke a lot of what I assumed about it.
 
-## Activities
+## How a click reaches a bot
 
-A bot can ship its own game client now. It registers a workflow and a URL, and Tawks loads that in a sandboxed iframe in the lobby. The frame talks over a MessageChannel with size and rate limits and can only run its own workflow's actions. Hub admins turn them on per hub.
+A bot doesn't get webhooks. It holds a websocket and an action comes down it.
 
-Tic tac toe was the test. Cards runs this way too.
+1. You press a button. The API looks at the action and sees it belongs to a bot.
+2. It publishes `ExternalServerActionStarted` with a token. The events server sends `WorkflowRequestServerAction` to that bot's sockets.
+3. The bot claims the token, runs the handler, calls `workflow_respond_server_action` with a result.
+4. The API applies the result to the instance and picks the next node.
 
-## devhost
+The result is data. `UpdateResponses`, `CompleteWorkflow`, `ScheduleJobs`, `WaitForPredicate`. The bot never touches the instance itself.
 
-devhost is a fake Tawks you run on your own machine. It answers the calls the SDK makes, runs server actions over a fake events socket and shows your game in one frame per fake player.
+Picking the next node is four passes over sorted node ids.
+
+```rust
+// 1. children of this node with a condition that passes
+// 2. children of this node with no condition
+// 3. root nodes with a condition that passes
+// 4. root nodes with no condition
+for id in ids.iter() {
+    let node = &workflow.nodes.0[*id];
+    if is_child_of_parent(node)
+        && !matches!(node.condition, Some(NodeCondition::Always) | None)
+        && self.evaluate_node_condition(node, state)
+    {
+        return Ok((*id).clone());
+    }
+}
+```
+
+A conditioned child beats a plain child, and ties go to the alphabet. That sounds fragile, and it's worked this long because it's simple enough to port.
+
+Which I did. The [playground](https://docs.tawks.app/playground) runs pages in the browser with no server, so it has this same logic in TypeScript.
+
+```ts
+return (
+  ids.find((id) => child(node(id)) && conditioned(node(id)) && passes(node(id))) ??
+  ids.find((id) => child(node(id)) && !conditioned(node(id))) ??
+  ids.find((id) => root(node(id)) && conditioned(node(id)) && passes(node(id))) ??
+  ids.find((id) => root(node(id)) && !conditioned(node(id))) ??
+  null
+);
+```
+
+Two implementations of one rule is how you get drift, so tests pin what they can. Each TypeScript builder has to produce the same JSON as its Rust twin, checked against Rust's own output, and CI runs every playground template through the code generator and the real builders and expects the same definition back. Conditions moved into `workflow-model` so the engine and devhost share them.
+
+Forms caught me too. A typed value only reaches an action from inside a form. My own Steps template in the playground showed a literal `{name}` on step 2 because I didn't put the input in one.
+
+## What an iframe is allowed to do
+
+Activities let a bot ship its own game client. The obvious risk is that it's someone else's code on a page next to your account.
+
+```html
+<iframe sandbox="allow-scripts allow-pointer-lock" referrerpolicy="no-referrer" ... ></iframe>
+```
+
+No `allow-same-origin`, so the frame has an opaque origin, no cookies and no storage. The address is checked twice, at registration and again before the frame loads. It has to be https and it can't be on a Tawks host, except the one host for hosted bundles.
+
+The handshake works because of that opaque origin.
+
+1. The game posts `hello` to `window.parent` every 500ms, and gives up after 10 seconds.
+2. The page only listens if `event.source` is its own frame and `event.origin === 'null'`.
+3. It makes a `MessageChannel`, keeps one port, and sends the other in `welcome`.
+
+After that nothing goes through `window.postMessage`. Every move is a message on that port, with limits.
+
+```ts
+export const MAX_INPUT_BYTES = 16 * 1024;
+export const SENDS_PER_SECOND = 20;
+```
+
+That's a token bucket in the page, 20 a second with bursts to 40. Inputs have to be JSON. Action ids have to match a pattern. Keys starting with `$` are refused, because those are reserved. And everything is submitted against the frame's own workflow instance.
+
+Push to talk was the annoying one. A keypress inside an iframe never reaches the parent, so a game's frame would break your push to talk key. The SDK has to report presses back up. But that means a frame could hold your mic open, so the page ignores it unless the frame has focus and the document is visible, and it lets go after 2 minutes no matter what.
+
+## Testing it without Tawks
+
+devhost is a fake Tawks you run locally. It answers the calls the SDK makes, runs server actions over a fake events socket, and shows your client in one frame per fake player, with the real bridge and the real limits.
 
 ```sh
 cargo run -p tawks-devhost
 ```
 
-There's a hosted version too. You sign in, get a sandbox token, and your lobbies expire when they go idle. Registrations have limits. Cards registers 67 server actions, so the limit is 100 now.
+Same binary is the hosted sandbox, with one env var. Sign in for a sandbox token, lobbies expire when idle, registrations have limits. Cards registers 67 server actions, so the limit is 100.
 
-## Playground
+## Two copies of everything
 
-The [playground](https://docs.tawks.app/playground) runs workflow pages in the browser. It has a port of the engine's next-node rules, you mock the server actions, and it gives you the page back as Rust or TypeScript.
+Production runs two copies of each service now, replaced one at a time. That sentence was a lot of work, because plenty of things assumed they were the only process alive.
 
-My own Steps template was broken in it. Step 2 showed `{name}` instead of the name, because a typed value only reaches an action from inside a form. I wrote that rule.
+**Instances were per process.** Running instances, waits and scheduled jobs moved into one store in Postgres. Each write checks and bumps a version, so a stale write fails instead of landing. Every commit gets announced so the other API drops its cached copy. And a bot's reply can land on either API.
 
-The same thing in two languages is going to drift, so there are tests. Each TypeScript builder has to give the same JSON as its Rust twin, and CI runs every template through.
+**Reads and writes needed a lock.** This one was already biting with one process. A bot reply, a reconcile and the timeout job would each read an instance, await something, and write the whole state back, so one could save over another and leave a table waiting forever. Now those hold a per-instance lock, and that lock is a Postgres advisory lock so it works across processes.
 
-The Play page draws every seat side by side with the real renderer. The answer to a start holds each seat as it was when that player sat down, and that was overwriting newer views from the stream. Now an older revision can't replace a newer one.
+```rust
+loop {
+    let locked: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1, hashtext($2))")
+        .bind(scope.class())
+        .bind(instance_id)
+        .fetch_one(&mut *conn)
+        .await
+        .map_err(runtime_error)?;
+    if locked { return Ok(/* AdvisoryLock holding conn */); }
+    if started.elapsed() > LOCK_PATIENCE {
+        return Err(WorkflowError::ConcurrentModification(instance_id.to_string()));
+    }
+    tokio::time::sleep(pause).await;
+    pause = (pause * 2).min(Duration::from_millis(100));
+}
+```
 
-## Two of everything
+Backoff from 5ms to 100ms, give up at 30 seconds. Session advisory locks belong to a connection, so a held lock pins a connection out of a dedicated pool. That pool was 24 and two API copies didn't fit in Postgres' connection limit, so it's 8 now. Which means about 8 locks held at once per API. If the lock can't be had, the version check is the backstop.
 
-Same stretch, production went to two copies of each service. They get replaced one at a time, and each one waits for the one before it to answer.
+**Bots got two copies too, so an action would run twice.** Both copies have a socket, and both get the request. So the first thing a bot does is claim.
 
-Bots claim a server action before handling it so the second copy leaves it alone. Schedulers run on whichever copy holds a Postgres advisory lock. I had to shrink the workflow lock pool so two API copies fit under Postgres' connection limit.
+```sql
+INSERT INTO workflow_server_action_dispatch (token, registrar_id, claimed_at, claim_expires_at)
+VALUES ($1, $2, NOW(), NOW() + ($3 * INTERVAL '1 second'))
+ON CONFLICT (token) DO UPDATE SET
+    registrar_id = EXCLUDED.registrar_id,
+    claimed_at = NOW(),
+    claim_expires_at = EXCLUDED.claim_expires_at
+WHERE workflow_server_action_dispatch.completed_at IS NULL
+  AND (workflow_server_action_dispatch.registrar_id IS NULL
+       OR workflow_server_action_dispatch.registrar_id = EXCLUDED.registrar_id
+       OR workflow_server_action_dispatch.claim_expires_at < NOW())
+RETURNING token
+```
 
-Soundhouse can't do two. Too much of it lives in one process. So the second copy waits without binding its port, takes over if the leader stops, and clears the lobby presence the old one left behind.
+One statement, so Postgres settles the race. A row back means you won. The registrar id is a new ULID every time a bot starts, so it's per process, not per bot. Same process can reclaim. A claim lasts 120 seconds.
+
+**Schedulers can't run twice either.** That's `libs/leader`, about 90 lines.
+
+```rust
+pub async fn is_leader(&self) -> bool {
+    let mut held = self.held.lock().await;
+    if let Some(conn) = held.as_mut() {
+        if conn.ping().await.is_ok() {
+            return true;
+        }
+        *held = None;
+    }
+    // pg_try_advisory_lock(hashtext(name)) on a detached connection
+}
+```
+
+The lock is held on a connection detached from the pool. There's no lease to renew and no expiry to tune. If the process dies, the connection drops and Postgres releases it. Next copy to check gets it.
+
+## What a rolling deploy actually does
+
+Walking through it, since this is the part I wanted to be sure of.
+
+**An API copy goes away.** Its advisory locks release when its connections close. If it was the leader, the other copy takes over on its next check. A reply in flight can fail, and the action stays pending in the store.
+
+**A bot copy goes away while working on something.** The claim is still live, so nobody touches it for up to 120 seconds. The leader API runs a replay loop every 30 seconds.
+
+```sql
+ON CONFLICT (token) DO UPDATE SET last_sent_at = NOW()
+WHERE completed_at IS NULL
+  AND (claim_expires_at IS NULL OR claim_expires_at < NOW())
+  AND (last_sent_at IS NULL OR last_sent_at <= NOW() - ($2 * INTERVAL '1 millisecond'))
+```
+
+It only resends if it's unanswered, unclaimed or the claim lapsed, and it hasn't gone out recently. But an external action times out at 60 seconds, which is shorter than the claim. So if a bot dies holding a claim, that action fails with a timeout before anyone else can take it. For a button that's fine, you press it again.
+
+**A bot copy comes back.** New registrar id, so new leases. Leases last 45 seconds and renew every 15 in bulk. If a registration finds nobody was holding that action, it replays what's pending right away, so a bot coming back picks up what was waiting. Old registrar rows get pruned 10 minutes after they expire, because otherwise every restart leaves a pile behind.
+
+**Bot definitions are still in API memory.** An API restart forgets them. The bot registers its workflows again on the same 15 second tick. So that's up to 15 seconds of that API not knowing about the bot. If a renewal comes back with fewer leases than it registered, the bot reconnects and registers everything.
+
+**The order of the deploy itself.** New bot on an old API, the claim call fails. So:
+
+```rust
+Err(error) => {
+    tracing::debug!(%error, token, "server action claim unavailable; handling it here");
+    true
+}
+```
+
+Failing open means an action can run twice for a moment during a deploy, so handlers shouldn't assume exactly once. I'd rather that than nothing running at all.
+
+**Soundhouse can't do any of this.** Lobby rosters and the voice bot are coordinated in one process. So it's active/standby. The standby waits on the lease checking every 3 seconds and doesn't bind its port, so the proxy only reaches the leader. If a leader loses the lease it exits on purpose. A new leader clears `lobby_presence`, because nobody is connected to a process that just started, and clients rejoin.
+
+`wait_ready` in the deploy script considers a copy up when anything answers on its port. Any status code. Not much of a health check.
+
+## Late views
+
+Bots can finish out of order, so a view can arrive after a newer one and roll a table back. Game views carry `$rev`.
+
+```rust
+/// A revision for each game view, increasing across lobbies and restarts
+fn next_view_rev() -> u64 {
+    // ...
+    let next = now.max(prev + 1);
+```
+
+Microseconds since epoch with a compare and swap, so it survives a restart without storing anything. A counter would start over at 1 and every update after a restart would look old. The engine drops updates with a lower `$rev`.
+
+```rust
+matches!((rev(responses), rev(updates)), (Some(current), Some(incoming)) if incoming < current)
+```
+
+The Play page draws every seat side by side, and it had the same bug on the client. The answer to a start holds each seat as it was when that player sat down, and by then the stream already had newer views, so it was overwriting them. The page reloads the lobby after a start now, and ignores anything older than what it has.
+
+```ts
+const current = instances.find((i) => i.id === changed.id);
+if (current && revision(current) > revision(changed)) return;
+```
+
+It's a wall clock across processes, so two different bot copies with skewed clocks could disagree. Only one copy owns a game at a time, the games service is active/standby, so I'm okay with that.
 
 <GithubRepo repo="timfeid/tawks-dev" link="https://github.com/timfeid/tawks-dev" />

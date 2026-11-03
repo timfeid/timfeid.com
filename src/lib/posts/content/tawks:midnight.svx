@@ -1,5 +1,5 @@
 ---
-description: A hidden role game for lobbies, built out of workflows
+description: A hidden role game where your role can change without you knowing, built out of workflows
 date: 1755997167
 image: /posts/tawks/008.png
 category: tawks
@@ -18,19 +18,18 @@ tags:
 
 ![The Hollow](/posts/tawks/008.png)
 
-I built [Werewolf](/posts/werewolf) back in 2019. This is that kind of game again, except it runs in a Tawks lobby and every night action is a workflow. It's called Midnight.
+I built [Werewolf](/posts/werewolf) in 2019 with Vue and Koa. Midnight is that kind of game again, except it runs in a Tawks lobby and every night action is a workflow. A role's turn is a node with some inputs and a server action, which the [engine](/posts/talky:workflows) already knew how to do.
 
-## First try
+The workflow part turned out to be the easy part. The hard part is that nobody is allowed to know what's true.
 
-The first commit had four roles: Seer, Spy, Werewolf and Witch. Each one was a JSON workflow like the one in the [workflows post](/posts/talky:workflows). The Seer alone was 180 lines of JSON.
+## A role is a stack, not a field
 
-That commit also copied the whole workflow engine into the game. The next commit, same day, deleted the copy and used the shared crate.
+The first version had a `role_card` on the player. You can see it commented out in the struct. It doesn't work, because of roles like these:
 
-A week later the JSON was gone too. Roles are Rust builders now. The names changed along the way. Werewolf is The Hollow, Seer is The Witness, Witch is The Saboteur. There are twelve roles now.
+- The Taker takes your role and you get theirs. You aren't told.
+- The Tangle swaps two other players. Neither is told.
 
-## Your role can change and nobody tells you
-
-The Taker steals your role. The Tangle swaps two players and they never find out. So a player can't just have a role. They have a stack.
+So at the end of the night there are two different answers to "what is this player". What they are, and what they think they are. Votes need the first one and your own screen needs the second one.
 
 ```rust
 pub struct RoleTransaction {
@@ -38,22 +37,171 @@ pub struct RoleTransaction {
     pub reason: String,
     pub visibility: RoleTransactionVisibilty,
 }
+
+pub struct Player {
+    // ...
+    pub role_card_stack: Vec<RoleTransaction>,
+}
 ```
 
-When the Taker steals, their new card is shown to them and yours is hidden from you. `effective_role_card` grabs the newest card and can filter by visibility. What you think you are and what you actually are end up being two different lookups.
+Nothing gets overwritten. A change pushes a card, and resolving a role walks the stack from the top.
 
-Visibility is spelled wrong in there. Moving on.
+```rust
+pub fn effective_role_card(&self, filter: Option<RoleTransactionVisibilty>) -> Arc<RoleCard> {
+    self.role_card_stack
+        .iter()
+        .rev()
+        .find(|c| {
+            if let Some(filter) = &filter {
+                &c.visibility == filter
+            } else {
+                true
+            }
+        })
+        .cloned()
+        .and_then(|x| Some(x.card))
+        .expect("not in game yet?")
+}
+```
 
-## The night
+`None` is the truth. `Some(Shown)` is what that player believes. The starting card is pushed as shown, so the shown lookup always finds something. That `expect` is a real panic if you ask before the deal though.
 
-Every enabled role gets a stage, sorted by priority, 15 seconds each. Some of those roles are sitting in the hidden cards, so a stage can have nobody in it. The runner sleeps through it anyway. An empty stage takes as long as a full one.
+Stealing is the case that needs both.
 
-The hidden cards used to be called the middle. The workflow engine even had a `SelectCard` input with `PlayerOnly`, `MiddleOnly` and `PlayerOrMiddle` filters, which is a lot of Werewolf for a workflow engine. The commit that fixed it is called "get rid of the middles". The game has its own `CardSelect` type now and uses regular inputs.
+```rust
+player.role_card_stack.push(RoleTransaction::new_shown(
+    target_player.effective_role_card(None),
+    "Taken card",
+));
 
-## Voting
+target_player.role_card_stack.push(RoleTransaction::new_hidden(
+    current_cole,
+    "The Taken's card",
+));
+```
 
-After the night everybody accuses, votes and locks in. A watcher ends the game when the last vote locks.
+The thief sees what they took, so that's shown. The victim's new card is hidden, so their shown lookup still returns what they were dealt. A Tangle swap pushes hidden on both sides. It also means the whole history of a card is sitting there with a reason on it if you ever want to show who did what at the end.
 
-The Assassin marks someone at night and only wins if that person dies by vote. No team. Doesn't matter who else wins.
+`current_cole` is a typo, in two functions. So is `Visibilty`, everywhere.
 
-Last thing I added was an elimination icon.
+## Who wakes up is decided before anyone moves
+
+The night is a queue of stages built from the enabled roles, sorted by priority.
+
+```rust
+g.enabled_cards()
+    .iter()
+    .map(|role| {
+        let players_ids: Vec<String> = g
+            .get_players_by_role(&role.id, None)
+            .unwrap_or_default()
+            .iter()
+            .map(|p| p.id.clone())
+            .collect();
+        (players_ids, role.clone())
+    })
+```
+
+This runs once, before the 15 second role reveal. So each stage has a frozen list of player ids, and `handle_player_turn` runs the stage's ability, not whatever that player currently resolves to. The Tangle is priority 7 and The Lost is priority 10. If the Tangle swaps The Lost with someone, the player who was dealt The Lost still wakes up and still acts as The Lost. That's what you want. If I looked it up live, getting swapped would change when you wake up, and then you'd know.
+
+That's not the only leak it avoids. Some roles are sitting in the hidden cards, so a stage can have nobody in it. It runs anyway.
+
+```rust
+for player_id in &stage.player_ids {
+    // spawn handle_player_turn
+}
+// ...
+sleep(duration).await;
+```
+
+An empty stage has an empty loop and then sleeps the same 15 seconds as a full one. The runner sleeps for the stage no matter how fast you click, too. Finishing your turn early doesn't move the game along, so nobody learns anything from how long the night took.
+
+## The Saboteur replaces your choices
+
+The Saboteur gets a random role from a candidate list and plays that role's real workflow. Then the actual holder of that role takes their turn, thinks it worked, and it did not. There's no special workflow for this. It's a check inside the Spy, Tangle and Witness server actions.
+
+```rust
+if user_role_card.name == "The Saboteur" {
+    game.lock().await.set_sabotage_inputs(
+        "tangle",
+        &state.workflow_id,
+        (user_role.clone(), state.inputs.clone()),
+    );
+    return Ok(ServerActionResult::CompleteWorkflow {
+        message: "Sabotage complete.".to_string(),
+        responses: HashMap::new(),
+    });
+}
+```
+
+The Saboteur's inputs get stored against the role and the workflow. When the real Tangle submits later, the action looks for those.
+
+```rust
+let effective_inputs = if sabotage_inputs.is_some() {
+    // log "expected to tangle" with what they actually picked
+    sabotage_inputs.unwrap()
+} else {
+    state.inputs.clone()
+};
+```
+
+Their picks get logged as "expected to tangle" and thrown away, and the Saboteur's picks run instead. This only works because of order. Saboteur is priority 0 and Tangle is priority 7. It's also the same block copied three times, keyed by a hardcoded string, and I don't like that. A role that forgets the check just can't be sabotaged.
+
+## The Spy waits on someone else's workflow
+
+The Spy picks a role and sees what that role did. The Spy is also priority 0, so at that point the other role hasn't done anything yet. The engine already had waits, so that's what it uses.
+
+```rust
+return Ok(ServerActionResult::WaitForPredicate {
+    predicate: WorkflowPredicate::ByWorkflowDefinitionIdAndUserId(
+        workflow.definition,
+        player.id,
+    ),
+    responses: { /* role_name */ },
+    inject_response_as: Some("observed_results".to_string()),
+    action_on_complete: Some(WorkflowAction {
+        id: "next".into(),
+        action_type: ActionType::NextNode,
+        target: None,
+    }),
+});
+```
+
+The Spy's instance parks until a workflow of that definition, for that player, completes. The results land in the Spy's responses as `observed_results` and the Spy's workflow moves to the next node. So one player's workflow is blocked on another player's, across stages, and the only game code involved is that return value. If the role is in the hidden cards there's no player to wait on, so it logs "tried to spy on" and sets `no_results`.
+
+## Game stuff leaked into the engine
+
+Early on the workflow engine had a game specific input.
+
+```rust
+pub enum CardFilter {
+    PlayerOnly { allow_self: bool },
+    MiddleOnly,
+    PlayerOrMiddle { allow_self: bool },
+}
+```
+
+That's in `libs/workflow`, a crate with no business knowing what a card is. The first commit had roles as JSON workflows using a `SelectCard` input. The Seer alone was 180 lines of JSON. That same commit copied the whole engine into the game too, 976 lines of `manager.rs` alone, and the next commit deleted the copy the same day.
+
+The JSON went a week later, in favor of Rust builders. `CardFilter` and `SelectCard` went on August 4th in a commit called "get rid of the middles". The Witness now uses a normal input display and the game has its own type for what got picked.
+
+```rust
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CardSelect {
+    Player { id: String },
+    Hidden { id: usize },
+}
+```
+
+The engine doesn't know what a card is now. That's how it should have been.
+
+## The part I'd change
+
+Every server action is a closure holding its own clone of `Arc<Mutex<GameState>>`. The runner is behind a lock too, and turns are spawned tasks holding the runner. A lot of it looks like this.
+
+```rust
+let player = game_arc.lock().await.get_player(&player_id).unwrap().clone();
+let workflow = game_arc.lock().await.workflow.clone();
+```
+
+Lock, read, unlock, lock again. It works. But two reads like that aren't one consistent read, and the only thing keeping it honest is that a stage is mostly one person doing one thing every 15 seconds. It's fine for this game. I wouldn't want to build a second game this way.
