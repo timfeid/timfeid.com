@@ -1,0 +1,57 @@
+---
+description: Make your own bot, ship your own game into a lobby, and test it without touching Tawks
+date: 1792851608
+image: /posts/tawks/011.webp
+category: tawks
+title: Tawks - Other people can build on it now
+tags:
+  - "Rust"
+  - "TypeScript"
+  - "Svelte"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Tawks - Other people can build on it now
+
+![The workflow playground](/posts/tawks/011.webp)
+
+You can make your own bot now. A hub gives your role the Create Bots permission, then it's Settings > Bots. The token shows once and starts with `tbot_` so secret scanners can spot it. There's a [Rust and a JavaScript SDK](https://github.com/timfeid/tawks-dev) and [docs](https://docs.tawks.app).
+
+## Activities
+
+A bot can ship its own game client now. It registers a workflow and a URL, and Tawks loads that in a sandboxed iframe in the lobby. The frame talks over a MessageChannel with size and rate limits and can only run its own workflow's actions. Hub admins turn them on per hub.
+
+Tic tac toe was the test. Cards runs this way too.
+
+## devhost
+
+devhost is a fake Tawks you run on your own machine. It answers the calls the SDK makes, runs server actions over a fake events socket and shows your game in one frame per fake player.
+
+```sh
+cargo run -p tawks-devhost
+```
+
+There's a hosted version too. You sign in, get a sandbox token, and your lobbies expire when they go idle. Registrations have limits. Cards registers 67 server actions, so the limit is 100 now.
+
+## Playground
+
+The [playground](https://docs.tawks.app/playground) runs workflow pages in the browser. It has a port of the engine's next-node rules, you mock the server actions, and it gives you the page back as Rust or TypeScript.
+
+My own Steps template was broken in it. Step 2 showed `{name}` instead of the name, because a typed value only reaches an action from inside a form. I wrote that rule.
+
+The same thing in two languages is going to drift, so there are tests. Each TypeScript builder has to give the same JSON as its Rust twin, and CI runs every template through.
+
+The Play page draws every seat side by side with the real renderer. The answer to a start holds each seat as it was when that player sat down, and that was overwriting newer views from the stream. Now an older revision can't replace a newer one.
+
+## Two of everything
+
+Same stretch, production went to two copies of each service. They get replaced one at a time, and each one waits for the one before it to answer.
+
+Bots claim a server action before handling it so the second copy leaves it alone. Schedulers run on whichever copy holds a Postgres advisory lock. I had to shrink the workflow lock pool so two API copies fit under Postgres' connection limit.
+
+Soundhouse can't do two. Too much of it lives in one process. So the second copy waits without binding its port, takes over if the leader stops, and clears the lobby presence the old one left behind.
+
+<GithubRepo repo="timfeid/tawks-dev" link="https://github.com/timfeid/tawks-dev" />

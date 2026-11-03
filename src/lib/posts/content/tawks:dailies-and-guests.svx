@@ -1,0 +1,51 @@
+---
+description: A word game that lasted twelve hours, a football hub, and no account needed
+date: 1789585163
+image: /posts/tawks/010.webp
+category: tawks
+title: Tawks - Daily games, football and guests
+tags:
+  - "Rust"
+  - "Svelte"
+  - "Games"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Tawks - Daily games, football and guests
+
+![Football picks as a guest](/posts/tawks/010.webp)
+
+## The word game
+
+Sunday night I added a daily secret word game, like Contexto. You guess a word and it ranks how close you are using embeddings. 17,329 words in the vocabulary, 3,526 possible secrets.
+
+Monday morning I swapped the hints for clue words that get warmer as you go, cut 1,638 of the secrets and tuned the scoring around ten guesses.
+
+About half an hour later I replaced the whole game with a Connections style puzzle. Four groups of four, from a bank of 30 I wrote by hand.
+
+```json
+{"level": 4, "name": "Sound like numbers", "words": ["WON", "ATE", "FOR", "TOO"]}
+```
+
+So the first one lasted about twelve hours. That afternoon the bank got easier and you get one hint after two mistakes.
+
+## Football
+
+The Football hub has weekly pick'em and a season long survivor pool. It runs off ESPN's public scoreboard. Weeks go Wednesday to Wednesday, picks lock at kickoff and you get up to three locks a week. Later that day I added a fantasy lineup, QB, RB, WR and a flex, half PPR off the box scores.
+
+ESPN stopped accepting date ranges on the scoreboard, so it fetches one day at a time now.
+
+Button inputs stay in the workflow's responses. Tapping a lineup slot reused the game you picked for the last slot and jumped straight to its players.
+
+It was all one channel at first. Now Picks, Lineup, Survivor, Leaderboard and Me are separate channels, each its own workflow, all one bot.
+
+## Guests
+
+You don't need an account anymore. Every visitor gets a guest session. You can look around public hubs and play the games, and there's a sign in prompt where the chat box would be. The API refuses writes from a guest. If you sign up the guest gets converted, so your game history stays yours.
+
+Guests were all called "Guest" at first. Now you get something like GoldenSparrow-918.
+
+The games were skipping a guest's saved state too, so a group you already solved stayed on the board and your picks looked blank. Also a dead guest token used to fail every call. Now it gets replaced.

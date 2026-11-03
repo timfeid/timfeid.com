@@ -1,0 +1,68 @@
+---
+description: Games get their own service, and a bot joins the lobby to run trivia out loud
+date: 1769660656
+image: /posts/tawks/009.webp
+category: tawks
+title: Tawks - Games move out, and a bot that listens
+tags:
+  - "Rust"
+  - "LiveKit"
+  - "Games"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Tawks - Games move out, and a bot that listens
+
+![Midnight](/posts/tawks/009.webp)
+
+Games have their own service now. It signs in as a bot, same as any other bot. Trivia showed up in the same move.
+
+## One actor per lobby
+
+[Midnight](/posts/tawks:midnight) had an `Arc<Mutex<GameState>>` in every role and another lock around the runner. That's gone. There's a trait now.
+
+```rust
+pub trait GameLogic: Sized + Send + Sync + 'static {
+    fn update(&mut self, player_id: &str, action: Self::Action) -> Result<Vec<Self::Effect>>;
+    fn view_for(&self, player_id: &str) -> Self::View;
+    fn tick(&mut self) -> Vec<Self::Action> {
+        vec![]
+    }
+    // ...
+}
+```
+
+Each lobby gets one task and a channel. Actions go in one at a time, so the game just gets `&mut self`. It ticks once a second. `view_for` takes the player, which is how hidden stuff stays hidden.
+
+Midnight, trivia and the card game all run on it. The commit was 78 files, 7200 lines in and 5004 out. The message was "feat: it works".
+
+## Voice
+
+In December I vendored the `sfu` crate into the repo. By the end of January that's gone and voice is on LiveKit. Soundhouse can join a room like anyone else now, so I had it join.
+
+## A bot that listens
+
+It subscribes to everyone in the lobby. Audio gets resampled to 16kHz and it watches the volume. 700ms of quiet ends what you were saying, then that goes to a small Python server running faster-whisper.
+
+Whisper hears things when nobody is talking, so there's a list.
+
+```python
+hallucinations = ["Thank you.", "Thanks for watching.", "You", "Bye."]
+```
+
+Those get thrown out before it looks for a command. To get its attention you say "listen" or "talks". It can start a game, tell a joke or tell you the time. Anything else goes to chat.
+
+## Trivia out loud
+
+Everything you say gets checked against the current answer first.
+
+```rust
+if spoken.contains(&target.text) || jaro_winkler(&spoken, &target.text) > 0.85 {
+```
+
+Transcription is never exact so it has to be a little loose. Get it right and the bot says "Correct!" with your score, gives you 100 points, waits two seconds and reads the next question. The points go to whoever was talking, so each audio loop carries who it belongs to. That one has a FIX comment on it.
+
+The voice is NeuTTS. It streams 24kHz and soundhouse wants 48kHz, so every sample just gets repeated twice. The comment says to replace it with a proper resampler later.

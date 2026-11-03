@@ -1,0 +1,59 @@
+---
+description: A hidden role game for lobbies, built out of workflows
+date: 1755997167
+image: /posts/tawks/008.png
+category: tawks
+title: Tawks - A hidden role game made of workflows
+tags:
+  - "Rust"
+  - "Svelte"
+  - "Games"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Tawks - A hidden role game made of workflows
+
+![The Hollow](/posts/tawks/008.png)
+
+I built [Werewolf](/posts/werewolf) back in 2019. This is that kind of game again, except it runs in a Tawks lobby and every night action is a workflow. It's called Midnight.
+
+## First try
+
+The first commit had four roles: Seer, Spy, Werewolf and Witch. Each one was a JSON workflow like the one in the [workflows post](/posts/talky:workflows). The Seer alone was 180 lines of JSON.
+
+That commit also copied the whole workflow engine into the game. The next commit, same day, deleted the copy and used the shared crate.
+
+A week later the JSON was gone too. Roles are Rust builders now. The names changed along the way. Werewolf is The Hollow, Seer is The Witness, Witch is The Saboteur. There are twelve roles now.
+
+## Your role can change and nobody tells you
+
+The Taker steals your role. The Tangle swaps two players and they never find out. So a player can't just have a role. They have a stack.
+
+```rust
+pub struct RoleTransaction {
+    pub card: Arc<RoleCard>,
+    pub reason: String,
+    pub visibility: RoleTransactionVisibilty,
+}
+```
+
+When the Taker steals, their new card is shown to them and yours is hidden from you. `effective_role_card` grabs the newest card and can filter by visibility. What you think you are and what you actually are end up being two different lookups.
+
+Visibility is spelled wrong in there. Moving on.
+
+## The night
+
+Every enabled role gets a stage, sorted by priority, 15 seconds each. Some of those roles are sitting in the hidden cards, so a stage can have nobody in it. The runner sleeps through it anyway. An empty stage takes as long as a full one.
+
+The hidden cards used to be called the middle. The workflow engine even had a `SelectCard` input with `PlayerOnly`, `MiddleOnly` and `PlayerOrMiddle` filters, which is a lot of Werewolf for a workflow engine. The commit that fixed it is called "get rid of the middles". The game has its own `CardSelect` type now and uses regular inputs.
+
+## Voting
+
+After the night everybody accuses, votes and locks in. A watcher ends the game when the last vote locks.
+
+The Assassin marks someone at night and only wins if that person dies by vote. No team. Doesn't matter who else wins.
+
+Last thing I added was an elimination icon.
