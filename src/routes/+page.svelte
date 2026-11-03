@@ -97,10 +97,9 @@
 			</div>
 			<GithubRepo
 				class="mb-1 self-center"
-				link="https://github.com/timfeid/hmmm"
-				repo="timfeid/hmmm"
+				link="https://github.com/timfeid/tawks-dev"
+				repo="timfeid/tawks-dev"
 			/>
-			<p class="text-center text-sm text-neutral-500 italic">name still in progress</p>
 		</section>
 	</div>
 </Page>
