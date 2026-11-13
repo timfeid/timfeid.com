@@ -18,4 +18,6 @@ tags:
 
 ![Screenshot](/posts/tawks/001.png)
 
+<sup>Talky is called <a href="https://tawks.app">Tawks</a> now</sup>
+
 ... ai failed to write something cool so check back

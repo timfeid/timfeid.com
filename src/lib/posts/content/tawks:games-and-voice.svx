@@ -18,7 +18,7 @@ tags:
 
 ![Midnight](/posts/tawks/009.webp)
 
-Games have their own service now. It connects as a bot, same as any other bot. Everything it does goes through server actions and the same API. Two things in here were worth writing down: how a game runs, and how a bot hears you and answers.
+[Tawks](https://tawks.app) games have their own service now. It connects as a bot, same as any other bot. Everything it does goes through server actions and the same API. Two things in here were worth writing down: how a game runs, and how a bot hears you and answers.
 
 ## One actor per lobby
 

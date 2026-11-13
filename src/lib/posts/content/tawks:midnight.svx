@@ -18,7 +18,7 @@ tags:
 
 ![The Hollow](/posts/tawks/008.png)
 
-I built [Werewolf](/posts/werewolf) in 2019 with Vue and Koa. Midnight is that kind of game again, except it runs in a Tawks lobby and every night action is a workflow. A role's turn is a node with some inputs and a server action, which the [engine](/posts/talky:workflows) already knew how to do.
+I built [Werewolf](/posts/werewolf) in 2019 with Vue and Koa. Midnight is that kind of game again, except it runs in a [Tawks](https://tawks.app) lobby and every night action is a workflow. A role's turn is a node with some inputs and a server action, which the [engine](/posts/talky:workflows) already knew how to do.
 
 The workflow part turned out to be the easy part. The hard part is that nobody is allowed to know what's true.
 

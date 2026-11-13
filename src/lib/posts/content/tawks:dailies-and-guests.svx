@@ -18,7 +18,7 @@ tags:
 
 ![Football picks as a guest](/posts/tawks/010.webp)
 
-A few days of bots serving pages in hubs. The word game and guests are the two interesting ones.
+A few days of bots serving pages in [Tawks](https://tawks.app) hubs. The word game and guests are the two interesting ones.
 
 ## Ranking words with embeddings
 

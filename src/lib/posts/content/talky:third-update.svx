@@ -16,7 +16,7 @@ tags:
 
 # Talky - Adding bots/api integration
 
-<sup>name, talky, still a work in progress</sup>
+<sup>Talky is called <a href="https://tawks.app">Tawks</a> now</sup>
 
 
 ## Introduction

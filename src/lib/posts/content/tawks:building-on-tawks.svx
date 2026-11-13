@@ -18,7 +18,7 @@ tags:
 
 ![The workflow playground](/posts/tawks/011.webp)
 
-You can make your own bot now. There's a Rust and a JavaScript SDK, [docs](https://docs.tawks.app), and a [repo](https://github.com/timfeid/tawks-dev) with Midnight, Trivia, Tracklines and Cards in it. Opening it up meant writing down how this all works, and running a second copy of everything broke a lot of what I assumed about it.
+You can make your own [Tawks](https://tawks.app) bot now. There's a Rust and a JavaScript SDK, [docs](https://docs.tawks.app), and a [repo](https://github.com/timfeid/tawks-dev) with Midnight, Trivia, Tracklines and Cards in it. Opening it up meant writing down how this all works, and running a second copy of everything broke a lot of what I assumed about it.
 
 ## How a click reaches a bot
 

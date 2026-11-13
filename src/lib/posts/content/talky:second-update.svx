@@ -16,7 +16,7 @@ tags:
 
 # Talky - Svelte + Rust + Tauri multi media messaging
 
-<sup>name, talky, still a work in progress</sup>
+<sup>Talky is called <a href="https://tawks.app">Tawks</a> now</sup>
 
 ![Screenshot](/posts/tawks/002.png)
 

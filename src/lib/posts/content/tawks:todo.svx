@@ -20,7 +20,7 @@ tags:
 
 Every time a new model comes out, somebody builds a todo app with it. It's the hello world of AI. Three checkboxes, a vector database, and an agent that dynamically prioritizes your life.
 
-Tawks has a Builder now. You ask for something in your own words and an agent builds it into your hub: pages, data, rules, schedules. It was made for bigger things, like leagues and pick'ems. I had never asked it for a todo list, and at some point that stops being restraint and starts being an oversight.
+[Tawks](https://tawks.app) has a Builder now. You ask for something in your own words and an agent builds it into your hub: pages, data, rules, schedules. It was made for bigger things, like leagues and pick'ems. I had never asked it for a todo list, and at some point that stops being restraint and starts being an oversight.
 
 ## Full disclosure
 
