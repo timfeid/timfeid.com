@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Right from '$lib/components/app/right.svg?component';
+	import { postDate, postDateTime } from '$lib/posts/date';
 	import Page from '../lib/components/app/page.svelte';
 	import GithubRepo from '../lib/components/app/project/github-repo.svelte';
 	import { Badge } from '../lib/components/ui/badge';
@@ -30,24 +31,6 @@
 
 		return { projects, blogPosts };
 	});
-
-	function formatDate(unixTimestamp: number): string {
-		const now = Date.now();
-		const diffMs = now - unixTimestamp * 1000;
-		const msPerDay = 1000 * 60 * 60 * 24;
-		const days = Math.floor(diffMs / msPerDay);
-
-		if (days === 0) {
-			return 'Today';
-		}
-
-		if (days < 30) {
-			return `${days} day${days === 1 ? '' : 's'} ago`;
-		}
-
-		const months = Math.floor(days / 30);
-		return `${months} month${months === 1 ? '' : 's'} ago`;
-	}
 </script>
 
 <Page description="A full stack developer, not designer">
@@ -124,9 +107,9 @@
 				>
 			</CardContent>
 			<CardFooter class="mt-auto flex-col items-start p-3">
-				<div class="text-xs font-light text-neutral-500">
-					{formatDate(post.metadata.date)}
-				</div>
+				<time datetime={postDateTime(post.metadata.date)} class="text-xs font-light text-neutral-500">
+					{postDate(post.metadata.date)}
+				</time>
 				<div class="flex flex-wrap gap-2 pt-2">
 					{#each post.metadata.tags as tag}
 						<Badge variant="default">

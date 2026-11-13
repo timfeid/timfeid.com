@@ -2,6 +2,7 @@
 	import hljs from 'highlight.js/lib/core';
 	import PageContent from '$lib/components/app/page-content.svelte';
 	import Page from '$lib/components/app/page.svelte';
+	import { postDate, postDateTime } from '$lib/posts/date';
 	import { tick, type ComponentType } from 'svelte';
 
 	let PostComponent: ComponentType | undefined = $state(undefined);
@@ -25,6 +26,12 @@
 >
 	<PageContent>
 		<div class="prose prose-zinc dark:prose-invert mx-auto">
+			<time
+				datetime={postDateTime(data.metadata.date)}
+				class="not-prose mb-4 block text-sm font-light text-neutral-500"
+			>
+				{postDate(data.metadata.date)}
+			</time>
 			{#if PostComponent}
 				<PostComponent />
 			{/if}
