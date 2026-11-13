@@ -1,0 +1,143 @@
+---
+description: Three asks, 84 cents and 1.8 million tokens later, I have a todo list with no checkboxes and a manager
+date: 1794575593
+image: /posts/tawks/012.webp
+category: tawks
+title: Tawks - I used AI to build a todo app
+tags:
+  - "AI"
+  - "Rust"
+  - "Svelte"
+---
+
+<script lang="ts">
+  import GithubRepo from '$lib/components/app/project/github-repo.svelte'
+</script>
+
+# Tawks - I used AI to build a todo app
+
+![The todo channel, live](/posts/tawks/012.webp)
+
+Every time a new model comes out, somebody builds a todo app with it. It's the hello world of AI. Three checkboxes, a vector database, and an agent that dynamically prioritizes your life.
+
+Tawks has a Builder now. You ask for something in your own words and an agent builds it into your hub: pages, data, rules, schedules. It was made for bigger things, like leagues and pick'ems. I had never asked it for a todo list, and at some point that stops being restraint and starts being an oversight.
+
+## Full disclosure
+
+I didn't type the asks. I told Claude to go use the Builder, make a todo channel, and write a witty blog post about it. It offered to put the post on a branch so I could read it first. I said straight to master.
+
+So this is an AI using the AI builder I built with AI to build a todo app, written up by the AI. I'm told this is what productivity looks like.
+
+Everything below happened on the staging copy of Tawks with the real model. The numbers come out of the database.
+
+## The ask
+
+> make me a todo channel. i want to add things, check them off, and delete them
+
+It didn't ask a single question. The chat filled up with what it was doing.
+
+```
+Looking at your hub
+Looking at what a page can show
+Looking at how rules and schedules work
+Thinking it through
+I'm building the todo list as a private list for each person
+Now I'll test it by adding, checking off and deleting an item.
+Trying it out with sample people
+All three work.
+```
+
+"Trying it out with sample people" showed up six times. It invented people to test my todo list on. 78 seconds and 33 cents later there was a draft channel with a text box, a green Add button, and "Nothing to do yet."
+
+## What a todo list is made of
+
+A text file is a todo list. This one is:
+
+- one channel
+- one "system" with a collection, four rules, two views and a schedule
+- one page workflow with one node, three actions and 18 blocks
+- 6,324 bytes of JSON, on its seventh revision by the time it shipped
+
+I asked for a list for me. I got multi-tenancy. Every row has an owner, the collection is readable only by that owner, and the page has a notice for people who haven't joined the hub yet. Here is checking a box, trimmed a little.
+
+```json
+"toggle_todo": {
+  "do": [{
+    "do": "update",
+    "collection": "todos",
+    "set": { "done": "not row.done" },
+    "where": "row.id == input.item and row.owner == me"
+  }],
+  "on": { "kind": "action", "who": "members" }
+}
+```
+
+To be fair to the agent, that `row.owner == me` is the correct call. A todo list that everybody in a 15 person hub shares is a different product, and a worse one.
+
+## The manager
+
+The meme says the AI todo app has to guilt you. So:
+
+> can it nag me a little when i leave things undone
+
+"Me" and "a little" did not survive. It added a rule that runs every day at 6 PM UTC for every member of the hub with an open todo, on by default.
+
+```json
+"nag": {
+  "on": { "kind": "schedule" },
+  "do": [{
+    "do": "each",
+    "as": "person",
+    "in": "distinct(map(filter(rows.todos, t -> not t.done), t -> t.owner))",
+    "steps": [{
+      "do": "notify",
+      "to": "person",
+      "text": "You still have {count(filter(rows.todos, t -> t.owner == person and not t.done))} open {plural(count(filter(rows.todos, t -> t.owner == person and not t.done)), 'todo', 'todos')}. Take a minute to tick something off."
+    }]
+  }]
+}
+```
+
+I asked for a nag and it hired middle management for 15 people. It did say "I guessed 6 PM UTC, so tell me if you want another time", which is more than most managers offer.
+
+![What this changes](/posts/tawks/013.webp)
+
+The Builder shows you what a change does before it goes live, including the notification. The draft has no real rows to count, so the preview reads "You still have ... open .... Take a minute to tick something off." That's the most honest reminder I've ever been sent.
+
+## The checkbox
+
+The draft had two big pill buttons under every item, "Check off" and "Delete".
+
+> the buttons are kinda big. can each todo just be one line with a checkbox and a little x
+
+The answer: "Each todo is now one line: a checkbox, the text, a small x. Buttons may still show short labels (Check, Uncheck, Delete)."
+
+What I got is a button that says "Check" and a button that says "x Delete". A finished item looks exactly like an unfinished one, except its button now says "Uncheck". There's no strike-through and no tick. My AI todo app, the canonical three checkboxes, contains zero checkboxes.
+
+That one's on me. The page definition asks for a `square` icon and a `square-check` icon. My button doesn't draw them, and I haven't looked at why yet.
+
+Also, the agent files a one line summary with each draft. For the first two it filed "x". So the Builder card read "$0.33 so far" and, under it, "x". That was before I asked for a little x. It's the only x I got.
+
+## The bill
+
+| Ask | Waiting | Working | Cost |
+|---|---|---|---|
+| make me a todo channel | 39 s | 78 s | $0.33 |
+| nag me a little | 91 s | 45 s | $0.19 |
+| checkbox and a little x | 78 s | 62 s | $0.32 |
+
+Eleven minutes from the first ask to Publish, and 84 cents. More than half the waiting was my own staging runner, which picks up one job every two minutes so it can't hurt anything. The agent itself worked for about three minutes.
+
+It wrote 23,099 tokens to do it. It read 1.8 million, nearly all of them from cache, which is the agent re-reading how my platform works each time it thinks. The alternative costs zero tokens.
+
+```bash
+echo "buy milk" >> todo.txt
+```
+
+## Does it work
+
+Annoyingly, yes. Three items added, one checked, one deleted, page reloaded, all first try, each in a few hundred milliseconds. Nobody spent four hours debugging why the second bullet point breaks it. No retries, no failed jobs.
+
+The first item on the list is "write the blog post". It's still unchecked in the screenshot, and it's going to stay that way. Staging gets wiped every night at 07:30 UTC, which is the one todo feature I've always wanted.
+
+<GithubRepo repo="timfeid/tawks-dev" link="https://github.com/timfeid/tawks-dev" />
